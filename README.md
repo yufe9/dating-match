@@ -9,6 +9,8 @@
 - **v2 기믹**: 연애 예능처럼 쌍방 확인 → 72시간 여행 → 커플 지원금까지 시즌 하나를 시뮬레이션합니다. ([아래](#v2-기믹-이번-시즌))
 - **시각화**: 무작위로 뽑은 한 쌍(M06 × W22)의 분석 페이지 → [docs/index.html](docs/index.html)
   ([바로 보기](https://yufe9.github.io/dating-match/))
+- **48시간 소개팅 (웹)**: 가입하고 원하는 취향을 고르면 가상 인물과 매칭하고 로직까지 보여 주는 간이 앱
+  → [바로 해 보기](https://yufe9.github.io/dating-match/app.html) ([아래](#48시간-소개팅-웹))
 
 ## 설치 → 실행
 
@@ -20,6 +22,7 @@ python match.py M01      # M01 한 명: 1~4단계 추천 + 의외의 궁합 + �
 python match.py all      # 70명 전원의 1위만 한 줄씩
 python match.py season   # 시즌 전체: 화살표 → 안정 매칭 → 여행 자격 → 여행 → 커플·지원금
 python match.py check    # 자체 점검 + 시각화 기준값(M06 × W22) 확인
+python match.py export   # 웹 앱용 docs/profiles.json 다시 만들기 (CSV·점수표를 바꾼 뒤)
 ```
 
 Python 3.10 이상에서 동작합니다(3.13에서 확인).
@@ -80,6 +83,41 @@ e5 규칙에 따라 양쪽 모두 앞에 `query: `를 붙입니다(사람↔사�
 기본 설정으로 이번 시즌(2026-가을)은 **70명 → 매칭 29쌍 → 여행 10쌍 → 커플 7쌍**입니다.
 쌍방이 쉽게 되지 않도록 조절했고(처음 값으로는 21쌍이 커플), 조절 기록은 프롬프트 문서에 있습니다.
 
+## 48시간 소개팅 (웹)
+
+GitHub Pages에서 바로 열리는 간이 소개팅 앱입니다: <https://yufe9.github.io/dating-match/app.html>
+
+1. **입장**: 학번 + 이름(+ 서버 모드에서는 수업에서 알려 준 입장 코드). 전체 **30명**까지만 가입됩니다.
+2. **원하는 상대 고르기**: 내 특징은 입력하지 않고, 이 프로젝트의 범주 안에서 원하는 취향만 고릅니다.
+   꼭 지켜야 할 조건(나이·키·흡연·종교·지역), 가치관·생활습관, MBTI, 관심사, 외모 스타일, 중요하게 보는 항목.
+3. **결과**: 1 거르기(조건별 걸린 인원) → 2 문장 비교(방문자는 자기소개가 없어 건너뜀) → 3 순위(상위 10명) →
+   4 상대와 이유 + **로직 보기**(항목마다 내가 원한 것 · 상대의 값 · 점수).
+
+점수표는 `python match.py export`로 만든 `docs/profiles.json`에서 읽으므로 콘솔 버전과 같은 숫자를 씁니다.
+같은 취향을 넣으면 가치관·생활습관·관심사·성격·소통 점수가 파이썬 `rule_score`와 똑같이 나옵니다.
+웹 로직 점검: `node tests/app-logic.test.js`
+
+### 개인정보 보호
+
+- 학번·이름은 Supabase 표에 저장되지만 **방문자는 그 표를 읽을 수 없습니다**(RLS 켜고 정책 없음).
+  방문자가 부를 수 있는 것은 `dm_signup`(가입)과 `dm_count`(인원 수) 두 함수뿐이고, 둘 다 다른 사람 정보를 돌려주지 않습니다.
+- **입장 코드**가 틀리면 학번을 보기도 전에 같은 답을 돌려줘, 외부인이 "누가 가입했는지"를 알아내거나 가짜 학번으로 정원을 채울 수 없습니다.
+  코드는 저장소에 넣지 않고 대시보드에서만 정합니다.
+- 브라우저에는 학번을 남기지 않고(이름과 번호만 sessionStorage에, 창을 닫으면 사라짐), 화면은 전부 `textContent`로 그립니다.
+- 공개 저장소에는 비밀 키가 없습니다. `docs/config.js`에는 공개돼도 되는 URL·publishable 키만 넣으며, 비밀 키를 넣으면 앱이 실행을 멈춥니다.
+- 과제가 끝나면 SQL Editor에서 `truncate table public.dm_members;`로 명단을 지웁니다.
+
+### 서버 연결 (처음 한 번, 약 5분)
+
+`docs/config.js`가 비어 있으면 **데모 모드**로 동작합니다(가입이 그 브라우저에만 저장되고 30명 제한은 브라우저마다 따로).
+실제로 30명 정원을 걸려면:
+
+1. [supabase.com](https://supabase.com)에서 새 프로젝트를 만듭니다(무료).
+2. 대시보드 → SQL Editor에 [`supabase/schema.sql`](supabase/schema.sql) 전체를 붙여넣고 실행합니다.
+3. 같은 SQL Editor에서 입장 코드를 정합니다(코드는 저장소에 올리지 마세요):
+   `update public.dm_settings set code = '원하는코드' where id = 1;`
+4. 대시보드 → Project Settings → API에서 **Project URL**과 **publishable(anon) 키**를 복사해 `docs/config.js`에 넣고 push합니다.
+
 ## 숫자 바꾸기
 
 `match.py` **맨 위 설정 블록** 한 곳만 고치면 됩니다.
@@ -117,6 +155,10 @@ e5 규칙에 따라 양쪽 모두 앞에 `query: `를 붙입니다(사람↔사�
 | `match.py` | 로직 전체 (로직 함수는 값만 돌려주고, 출력은 `main()` 쪽에서만) |
 | `men.csv`, `women.csv` | 가상 프로필 (utf-8-sig, 엑셀에서 한글이 깨지지 않음). v2에서 맨 끝에 `중요항목` 칸 추가 |
 | `docs/index.html` | M06 × W22 시각화 (스크롤하면 Anime.js 애니메이션) |
+| `docs/app.html`, `docs/app-logic.js`, `docs/config.js` | 48시간 소개팅 웹 앱 (화면 · 순수 로직 · 서버 설정) |
+| `docs/profiles.json` | `python match.py export`로 만든 가상 인물 + 점수표 (웹이 읽음) |
+| `supabase/schema.sql` | 가입 정원 30명·개인정보 보호용 DB 스키마 |
+| `tests/app-logic.test.js` | 웹 로직 점검 (`node tests/app-logic.test.js`) |
 | `docs/v2-기믹-프롬프트.md` | v2 기믹 작업 지시문과 난이도 조절 기록 |
 | `requirements.txt` | `sentence-transformers` |
 | `embeddings.json` | 실행하면 생기는 벡터 캐시 (`.gitignore`로 제외) |

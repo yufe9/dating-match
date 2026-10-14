@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co">
+<title>48시간 소개팅</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 레이아웃: 한 줄기 화면 — 가입 → 취향 고르기 → 결과(4단계). 결과는 단계 카드가 위에서 아래로 쌓입니다 */
+:root {
+  --bg: #f5f4f8; --surface: #ffffff; --ink: #1d1b26; --muted: #5e5a6e; --line: #dedbe7;
+  --accent: #6a46c9; --accent-ink: #ffffff; --soft: #efeafc; --ok: #2c8448; --bad: #c03a3a;
+  --display: "Hahmlet", "Noto Serif KR", "Batang", serif;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121119; --surface: #1b1a25; --ink: #ebe8f3; --muted: #a29db5; --line: #2e2b3b;
+    --accent: #a98bf0; --accent-ink: #15131c; --soft: #262036; --ok: #5bc07a; --bad: #ee6d6d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121119; --surface: #1b1a25; --ink: #ebe8f3; --muted: #a29db5; --line: #2e2b3b;
+  --accent: #a98bf0; --accent-ink: #15131c; --soft: #262036; --ok: #5bc07a; --bad: #ee6d6d; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 18px; padding-block: 28px 56px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.25; text-wrap: balance; }
+h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); letter-spacing: -.01em; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .08em; color: var(--muted); }
+
+.top { display: grid; gap: 10px; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { font-size: .8rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+.badge.live { border-color: var(--ok); color: var(--ok); }
+.badge.demo { border-color: var(--muted); color: var(--muted); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: grid; gap: 16px; min-width: 0; }
+.notice { font-size: .85rem; color: var(--muted); background: var(--soft); border-radius: 8px; padding: 12px 14px; }
+.error { color: var(--bad); font-weight: 600; font-size: .9rem; }
+.error:empty { display: none; }
+
+label.field { display: grid; gap: 4px; font-size: .88rem; font-weight: 600; }
+input[type=text], select { font: inherit; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; min-width: 0; width: 100%; }
+input:focus-visible, select:focus-visible, button:focus-visible, .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; }
+.check input { margin-top: 4px; }
+
+button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; min-width: 0; }
+legend { font-family: var(--display); font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; padding: 0; }
+.legend-note { font-size: .82rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; display: inline-flex; align-items: center; font-size: .85rem; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--line); cursor: pointer; user-select: none; background: var(--bg); }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip:has(input:checked) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.radios { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.steps { display: grid; gap: 16px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.step-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.step-no { font-family: var(--mono); font-size: .78rem; color: var(--accent-ink); background: var(--accent); border-radius: 4px; padding: 1px 7px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; min-width: 520px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .76rem; color: var(--muted); font-weight: 600; }
+tr.first td { background: var(--soft); font-weight: 600; }
+td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.bar { display: grid; grid-template-columns: 6.5em 1fr 4.2em; gap: 10px; align-items: center; font-size: .88rem; }
+.track { height: 10px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+.val { text-align: right; font-family: var(--mono); font-size: .82rem; }
+.match-card { display: grid; gap: 10px; border-left: 3px solid var(--accent); padding-left: 14px; }
+.intro { font-size: .93rem; }
+.reason { font-weight: 600; }
+details { border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+details > div { margin-top: 10px; display: grid; gap: 10px; }
+footer { font-size: .82rem; color: var(--muted); display: grid; gap: 4px; }
+footer a { color: var(--accent); }
+
+@media (max-width: 640px) {
+  .grid3, .grid4 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px) { .row2, .grid3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">수업 실습 · 매칭 로직 체험</p>
+    <h1>48시간 소개팅</h1>
+    <p class="muted">원하는 취향만 고르면, 가상 인물 70명 중에서 조건에 맞는 상대를 찾고 그 사람을 고른 이유와 계산 과정을 그대로 보여 드립니다.</p>
+    <div class="badges"><span class="badge" id="mode-badge">서버 확인 중…</span><span class="badge num" id="count-badge">정원 –/30</span><span class="badge" id="me-badge" hidden></span></div>
+  </header>
+
+  <!-- 가입 -->
+  <section class="panel" id="gate" aria-labelledby="gate-title">
+    <h2 id="gate-title">입장하기</h2>
+    <p class="notice">학번과 이름은 <b>정원(30명) 확인용</b>으로만 저장하며, 이 페이지나 GitHub 어디에도 공개되지 않습니다. 다른 가입자의 정보는 누구도 볼 수 없고, 과제가 끝나면 삭제합니다. 이미 가입했다면 같은 학번·이름으로 다시 들어오면 됩니다.</p>
+    <form id="gate-form" novalidate>
+      <div class="row2">
+        <label class="field" for="sid">학번 <input type="text" id="sid" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="숫자 6~12자리"></label>
+        <label class="field" for="sname">이름 <input type="text" id="sname" autocomplete="off" maxlength="20" placeholder="2~20자"></label>
+      </div>
+      <label class="field" for="scode" id="scode-wrap" style="margin-top:12px" hidden>입장 코드 <input type="text" id="scode" autocomplete="off" maxlength="40" placeholder="수업에서 안내한 코드"></label>
+      <p style="margin-top:12px"><label class="check" for="consent"><input type="checkbox" id="consent"> 학번·이름을 정원 확인용으로 저장하는 데 동의합니다.</label></p>
+      <p class="error" id="gate-error" role="alert"></p>
+      <div class="actions" style="margin-top:12px"><button type="submit" class="primary" id="gate-btn">입장</button></div>
+    </form>
+  </section>
+
+  <!-- 취향 고르기 -->
+  <section class="panel" id="prefs" hidden aria-labelledby="prefs-title">
+    <div class="actions" style="justify-content:space-between">
+      <h2 id="prefs-title">원하는 상대 고르기</h2>
+      <div class="actions"><button type="button" id="random-btn">무작위로 채우기</button><button type="button" id="reset-btn">모두 상관없음</button></div>
+    </div>
+    <p class="muted" style="font-size:.88rem">내 특징은 입력하지 않습니다. 모든 항목은 비워 두면 '상관없음'입니다.</p>
+    <form id="pref-form" novalidate style="display:grid;gap:26px"></form>
+    <p class="error" id="pref-error" role="alert"></p>
+    <div class="actions"><button type="button" class="primary" id="match-btn">48시간 상대 찾기</button><button type="button" id="logout-btn">나가기</button></div>
+  </section>
+
+  <!-- 결과 -->
+  <section id="result" hidden aria-live="polite">
+    <div class="steps" id="steps"></div>
+    <div class="actions" style="margin-top:16px"><button type="button" id="again-btn">취향 다시 고르기</button></div>
+  </section>
+
+  <footer>
+    <p>모든 프로필은 수업 실습용 가상 인물입니다. 점수는 정해 둔 규칙으로 매긴 궁합 점수이며, 실제로 만날 확률이 아닙니다.</p>
+    <p>코드: <a href="https://github.com/yufe9/dating-match">github.com/yufe9/dating-match</a> · 한 쌍 분석 시각화: <a href="./">M06 × W22</a></p>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="app-logic.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.Match48, ANY = M.ANY;
+  var CFG = window.DM_CONFIG || { url: "", key: "" };
+  var MEMBER_KEY = "48h.member.v1", PREF_KEY = "48h.prefs.v1", DEMO_KEY = "48h.demo.members.v1";
+  var LIMITS = { interests: 5, looks: 3, important: 2 };
+  var data = null;
+
+  // ------------------------------------------------------------ 작은 도우미
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs) {  // 화면 조립은 전부 이 함수로 — 문자열은 textContent로만 넣습니다
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "class") e.className = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    for (var i = 2; i < arguments.length; i++) {
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      e.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+    }
+    return e;
+  }
+  // 가입 정보는 sessionStorage(브라우저를 닫으면 사라짐 — 실습실 공용 PC 대비), 고른 취향만 localStorage
+  function box(key) { return key === MEMBER_KEY ? window.sessionStorage : window.localStorage; }
+  function store(key, val) {
+    try {
+      if (val === undefined) return JSON.parse(box(key).getItem(key) || "null");
+      box(key).setItem(key, JSON.stringify(val));
+    } catch (e) { return null; }
+  }
+  function forget(key) { try { box(key).removeItem(key); } catch (e) { /* 저장소를 못 쓰면 무시 */ } }
+
+  // ------------------------------------------------------------ 서버 (Supabase) 또는 데모
+  var live = !!(CFG.url && CFG.key);
+  function isSecretKey(k) {  // sb_secret_ 키, 또는 예전 형식(JWT)인데 role이 anon이 아닌 키
+    if (!k) return false;
+    if (k.indexOf("sb_secret_") === 0 || k.indexOf("service_role") !== -1) return true;
+    var parts = k.split(".");
+    if (parts.length !== 3) return false;
+    try { return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))).role !== "anon"; }
+    catch (e) { return true; }  // JWT처럼 생겼는데 읽히지 않으면 안전하게 막습니다
+  }
+  var badKey = isSecretKey(CFG.key);
+
+  function rpc(name, body) {
+    var opt = { headers: { apikey: CFG.key, "Content-Type": "application/json" } };
+    if (body) { opt.method = "POST"; opt.body = JSON.stringify(body); }
+    return fetch(CFG.url.replace(/\/$/, "") + "/rest/v1/rpc/" + name, opt).then(function (r) {
+      if (!r.ok) throw new Error("서버 응답 " + r.status);
+      return r.json();
+    });
+  }
+  function demoMembers() { return store(DEMO_KEY) || []; }
+  function getCount() {
+    if (live) return rpc("dm_count");
+    return Promise.resolve(demoMembers().length);
+  }
+  function sha256(text) {  // 데모 모드에서도 학번·이름 원문은 저장하지 않습니다
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+    });
+  }
+  function signup(code, sid, name) {
+    if (live) return rpc("dm_signup", { p_code: code, p_student_id: sid, p_name: name });
+    return Promise.all([sha256("id|" + sid), sha256("name|" + name)]).then(function (h) {
+      var list = demoMembers(), found = list.filter(function (m) { return m.sid === h[0]; })[0];
+      if (found) return found.name === h[1] ? { ok: true, slot: found.slot, again: true, count: list.length } : { ok: false, reason: "taken" };
+      if (list.length >= 30) return { ok: false, reason: "full", count: list.length };
+      list.push({ sid: h[0], name: h[1], slot: list.length + 1 });
+      store(DEMO_KEY, list);
+      return { ok: true, slot: list.length, again: false, count: list.length };
+    });
+  }
+  var REASONS = {
+    bad_code: "입장 코드가 맞지 않습니다. 수업에서 안내한 코드를 입력해 주세요.",
+    bad_id: "학번은 숫자 6~12자리로 입력해 주세요.",
+    bad_name: "이름은 2~20자로 입력해 주세요.",
+    taken: "이미 다른 이름으로 가입된 학번입니다. 처음 가입할 때 쓴 이름을 그대로 입력해 주세요.",
+    full: "정원 30명이 모두 찼습니다. 콘솔 버전(match.py)은 누구나 실행해 볼 수 있습니다."
+  };
+
+  function showCount() {
+    getCount().then(function (n) { $("count-badge").textContent = "정원 " + n + "/30"; })
+      .catch(function () { $("count-badge").textContent = "정원 확인 실패"; });
+  }
+
+  // ------------------------------------------------------------ 가입 화면
+  function enter(member) {
+    $("gate").hidden = true;
+    $("prefs").hidden = false;
+    $("me-badge").hidden = false;
+    $("me-badge").textContent = member.name + " 님 · " + member.slot + "번째";
+  }
+
+  $("gate-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var sid = $("sid").value.trim(), name = $("sname").value.trim(), err = $("gate-error");
+    err.textContent = "";
+    if (!/^[0-9]{6,12}$/.test(sid)) { err.textContent = REASONS.bad_id; $("sid").focus(); return; }
+    if (name.length < 2 || name.length > 20) { err.textContent = REASONS.bad_name; $("sname").focus(); return; }
+    if (live && !$("scode").value.trim()) { err.textContent = REASONS.bad_code; $("scode").focus(); return; }
+    if (!$("consent").checked) { err.textContent = "저장 동의에 체크해야 입장할 수 있습니다."; return; }
+    if (!data) { err.textContent = "가상 인물 데이터를 아직 불러오는 중입니다. 잠시 후 다시 눌러 주세요."; return; }
+    $("gate-btn").disabled = true;
+    signup($("scode").value.trim(), sid, name).then(function (res) {
+      if (!res || !res.ok) { err.textContent = REASONS[res && res.reason] || "가입하지 못했습니다. 잠시 후 다시 시도해 주세요."; return; }
+      var member = { slot: res.slot, name: name, live: live };  // 학번은 이 브라우저에 남기지 않습니다
+      store(MEMBER_KEY, member);
+      $("count-badge").textContent = "정원 " + res.count + "/30";
+      enter(member);
+    }).catch(function (e) {
+      err.textContent = "서버에 연결하지 못했습니다 (" + e.message + "). 인터넷 연결을 확인하고 다시 시도해 주세요.";
+    }).then(function () { $("gate-btn").disabled = false; });
+  });
+
+  $("logout-btn").addEventListener("click", function () {
+    forget(MEMBER_KEY);
+    location.reload();
+  });
+
+  // ------------------------------------------------------------ 취향 폼 (범주는 데이터에서)
+  function uniq(field, split) {
+    var s = {};
+    data.profiles.forEach(function (p) { (split ? M.list(p[field]) : [p[field]]).forEach(function (v) { s[v] = 1; }); });
+    return Object.keys(s).sort(function (a, b) { return a.localeCompare(b, "ko"); });
+  }
+  function select(id, label, options, any) {
+    var s = el("select", { id: id, name: id });
+    s.appendChild(el("option", { value: ANY, text: any || "상관없음" }));
+    options.forEach(function (o) {
+      var v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
+      s.appendChild(el("option", { value: String(v), text: String(t) }));
+    });
+    return el("label", { class: "field", for: id }, label, s);
+  }
+  function chips(name, options, limit) {
+    var box = el("div", { class: "chips", role: "group" });
+    options.forEach(function (o, i) {
+      var id = name + "-" + i;
+      var inp = el("input", { type: "checkbox", id: id, name: name, value: o });
+      inp.addEventListener("change", function () {
+        var on = box.querySelectorAll("input:checked").length;
+        if (on > limit) { inp.checked = false; $("pref-error").textContent = "최대 " + limit + "개까지 고를 수 있습니다."; }
+        else $("pref-error").textContent = "";
+      });
+      box.appendChild(el("label", { class: "chip", for: id }, inp, o));
+    });
+    return box;
+  }
+  function group(title, note) {
+    var fs = el("fieldset", null, el("legend", { text: title }));
+    if (note) fs.appendChild(el("p", { class: "legend-note", text: note }));
+    return fs;
+  }
+  function range(a, b, st) { var out = []; for (var i = a; i <= b; i += st) out.push(i); return out; }
+
+  function buildForm() {
+    var f = $("pref-form"), S = data.SCALES;
+    var ages = range(22, 40, 1).map(function (n) { return [n, n + "세"]; });
+    var heights = range(150, 195, 5).map(function (n) { return [n, n + "cm"]; });
+
+    var g0 = group("만나고 싶은 상대");
+    var radios = el("div", { class: "radios", role: "radiogroup", "aria-label": "만나고 싶은 상대의 성별" });
+    [["여", "여성"], ["남", "남성"]].forEach(function (o, i) {
+      var inp = el("input", { type: "radio", name: "gender", id: "gender-" + i, value: o[0] });
+      if (i === 0) inp.checked = true;
+      radios.appendChild(el("label", { class: "chip", for: "gender-" + i }, inp, o[1]));
+    });
+    g0.appendChild(radios);
+
+    var g1 = group("꼭 지켜야 할 조건", "여기서 고른 조건에 하나라도 안 맞으면 1단계에서 걸러집니다.");
+    g1.appendChild(el("div", { class: "grid3" },
+      select("ageMin", "나이 최소", ages), select("ageMax", "나이 최대", ages),
+      select("smoke", "흡연", [["비흡연만", "비흡연자만"]])));
+    g1.appendChild(el("div", { class: "grid3" },
+      select("heightMin", "키 최소", heights), select("heightMax", "키 최대", heights),
+      select("religion", "종교 (고르면 일치 필수)", uniq("종교"))));
+    var cityOnly = el("input", { type: "checkbox", id: "cityOnly" });
+    g1.appendChild(el("div", { class: "row2" }, select("city", "사는 곳", uniq("거주_시")),
+      el("label", { class: "check", for: "cityOnly", style: "align-self:end;padding-bottom:8px" }, cityOnly, "이 지역 사람만 (거르기)")));
+
+    var g2 = group("원하는 가치관 · 생활습관", "같으면 만점, 한 칸 차이면 부분 점수입니다.");
+    g2.appendChild(el("div", { class: "grid3" },
+      select("결혼의향", "결혼 시기", S["결혼의향"]), select("자녀계획", "자녀 계획", uniq("자녀계획")),
+      select("연락빈도", "연락 빈도", S["연락빈도"])));
+    g2.appendChild(el("div", { class: "grid3" },
+      select("음주", "음주", S["음주"]), select("운동", "운동", S["운동"]),
+      select("주말스타일", "주말 스타일", S["주말스타일"])));
+    g2.appendChild(el("div", { class: "grid3" },
+      select("반려동물", "반려동물", S["반려동물"]), select("edu", "학력 (한 단계 차이까지 인정)", S["학력"]),
+      select("salaryMin", "연봉 최소", S["연봉구간"])));
+    var mbti = el("div", { class: "grid4" });
+    [["E", "I"], ["N", "S"], ["T", "F"], ["J", "P"]].forEach(function (pair, i) {
+      mbti.appendChild(select("mbti" + i, "MBTI " + (i + 1) + "번째", pair));
+    });
+    g2.appendChild(mbti);
+
+    var g3 = group("관심사 · 외모 스타일");
+    g3.appendChild(el("p", { class: "legend-note", text: "관심사 최대 " + LIMITS.interests + "개 — 겹치는 1개당 5점" }));
+    g3.appendChild(chips("interests", uniq("관심사", true), LIMITS.interests));
+    g3.appendChild(el("p", { class: "legend-note", text: "선호하는 외모 스타일 최대 " + LIMITS.looks + "개 — 하나라도 겹치면 5점" }));
+    g3.appendChild(chips("looks", uniq("외모스타일", true), LIMITS.looks));
+
+    var g4 = group("내가 특히 중요하게 보는 항목", "최대 " + LIMITS.important + "개. 고른 항목은 호감도에서 " + data.WEIGHT_IMPORTANT + "배로 계산합니다.");
+    g4.appendChild(chips("important", Object.keys(data.MAX), LIMITS.important));
+
+    [g0, g1, g2, g3, g4].forEach(function (g) { f.appendChild(g); });
+  }
+
+  var SELECTS = ["ageMin", "ageMax", "smoke", "heightMin", "heightMax", "religion", "city", "결혼의향", "자녀계획",
+    "연락빈도", "음주", "운동", "주말스타일", "반려동물", "edu", "salaryMin"];
+
+  function readForm() {
+    var pref = M.emptyPref();
+    pref.gender = document.querySelector("input[name=gender]:checked").value;
+    SELECTS.forEach(function (id) { pref[id] = $(id).value; });
+    pref.mbti = [0, 1, 2, 3].map(function (i) { return $("mbti" + i).value; });
+    pref.cityOnly = $("cityOnly").checked;
+    ["interests", "looks", "important"].forEach(function (n) {
+      pref[n] = Array.prototype.map.call(document.querySelectorAll("input[name=" + n + "]:checked"), function (x) { return x.value; });
+    });
+    return pref;
+  }
+  function setSelect(id, v) {
+    var s = $(id);
+    s.value = Array.prototype.some.call(s.options, function (o) { return o.value === String(v); }) ? String(v) : ANY;
+  }
+  function writeForm(pref) {
+    document.querySelectorAll("input[name=gender]").forEach(function (x) { x.checked = x.value === pref.gender; });
+    SELECTS.forEach(function (id) { setSelect(id, pref[id]); });
+    [0, 1, 2, 3].forEach(function (i) { setSelect("mbti" + i, (pref.mbti || [])[i]); });
+    $("cityOnly").checked = !!pref.cityOnly;
+    ["interests", "looks", "important"].forEach(function (n) {
+      document.querySelectorAll("input[name=" + n + "]").forEach(function (x) { x.checked = (pref[n] || []).indexOf(x.value) !== -1; });
+    });
+  }
+
+  function randomPref() {  // 시연용: 범주 안에서 무작위로 채우기 (거르기는 느슨하게)
+    var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+    var some = function (a, n) { return a.slice().sort(function () { return Math.random() - 0.5; }).slice(0, n); };
+    var p = M.emptyPref(), S = data.SCALES;
+    p.gender = pick(["남", "여"]);
+    var lo = pick(range(24, 30, 1));
+    p.ageMin = String(lo); p.ageMax = String(lo + pick([6, 8, 10]));
+    ["결혼의향", "음주", "운동", "주말스타일", "반려동물", "연락빈도"].forEach(function (k) { p[k] = pick(S[k]); });
+    p["자녀계획"] = pick(uniq("자녀계획"));
+    p.mbti = [pick(["E", "I", ANY]), pick(["N", "S", ANY]), pick(["T", "F", ANY]), pick(["J", "P", ANY])];
+    p.interests = some(uniq("관심사", true), 4);
+    p.looks = some(uniq("외모스타일", true), 2);
+    p.important = some(Object.keys(data.MAX), 2);
+    return p;
+  }
+
+  $("random-btn").addEventListener("click", function () { writeForm(randomPref()); $("pref-error").textContent = ""; });
+  $("reset-btn").addEventListener("click", function () { writeForm(M.emptyPref()); $("pref-error").textContent = ""; });
+
+  // ------------------------------------------------------------ 결과
+  function stepCard(no, title, sub) {
+    var box = el("article", { class: "step" },
+      el("div", { class: "step-head" }, el("span", { class: "step-no", text: no }), el("h2", { text: title })));
+    if (sub) box.appendChild(el("p", { class: "muted", style: "font-size:.88rem", text: sub }));
+    return box;
+  }
+  function bar(label, s, mx) {
+    var fill = el("span", { class: "fill" });
+    fill.style.width = (mx ? (100 * s / mx) : 0) + "%";
+    return el("div", { class: "bar" }, el("span", { text: label }), el("span", { class: "track" }, fill), el("span", { class: "val", text: s + "/" + mx }));
+  }
+  function wanted(v) { return v === ANY || v == null ? "상관없음" : v; }
+
+  function logicRows(pref, p, sc) {  // '로직 보기': 항목별로 내가 원한 것 → 상대의 값 → 점수
+    var shared = M.sharedInterests(pref, p);
+    var ageWant = pref.ageMin !== ANY && pref.ageMax !== ANY
+      ? pref.ageMin + "~" + pref.ageMax + "세 (가운데 " + (Number(pref.ageMin) + Number(pref.ageMax)) / 2 + "세)" : "범위를 다 정하지 않음 (만점)";
+    return [
+      ["가치관", "결혼 " + wanted(pref["결혼의향"]) + " · 자녀 " + wanted(pref["자녀계획"]), "결혼 " + p["결혼의향"] + " · 자녀 " + p["자녀계획"]],
+      ["생활습관", data.HABITS.map(function (h) { return h + " " + wanted(pref[h]); }).join(" · "), data.HABITS.map(function (h) { return h + " " + p[h]; }).join(" · ")],
+      ["관심사", pref.interests.length ? pref.interests.join("·") : "상관없음", M.list(p["관심사"]).join("·") + (shared.length ? " → 겹침 " + shared.join("·") : " → 겹침 없음")],
+      ["성격·소통", "연락 " + wanted(pref["연락빈도"]) + " · MBTI " + pref.mbti.map(function (c) { return c || "?"; }).join(""), "연락 " + p["연락빈도"] + " · MBTI " + p["MBTI"]],
+      ["나이", ageWant, p["나이"] + "세"],
+      ["거주지", wanted(pref.city), p["거주_시"] + " " + p["거주_구"]],
+      ["외모스타일", pref.looks.length ? pref.looks.join("·") : "상관없음", M.list(p["외모스타일"]).join("·")],
+      ["경제·학력", "연봉 " + wanted(pref.salaryMin) + " 이상 · 학력 " + wanted(pref.edu), "연봉 " + p["연봉구간"] + " · 학력 " + p["학력"]]
+    ].map(function (r) { return r.concat([sc[r[0]] + "/" + data.MAX[r[0]]]); });
+  }
+
+  function table(head, rows, firstHighlight, rightCols) {
+    var tr0 = el("tr");
+    head.forEach(function (h) { tr0.appendChild(el("th", { text: h })); });
+    var tb = el("tbody");
+    rows.forEach(function (r, i) {
+      var tr = el("tr", firstHighlight && i === 0 ? { class: "first" } : null);
+      r.forEach(function (c, j) { tr.appendChild(el("td", (rightCols || []).indexOf(j) !== -1 ? { class: "r", text: c } : { text: c })); });
+      tb.appendChild(tr);
+    });
+    return el("div", { class: "tbl" }, el("table", null, el("thead", null, tr0), tb));
+  }
+
+  function render(pref) {
+    var res = M.match(data, pref), f = res.filter, box = $("steps");
+    box.textContent = "";
+    var who = pref.gender === "여" ? "여성" : "남성";
+
+    var s1 = stepCard("1", "거르기", "내가 고른 '꼭 지켜야 할 조건'으로 " + who + " " + f.pool + "명을 검사합니다. 한 사람이 여러 조건에 걸리면 각각 셉니다.");
+    s1.appendChild(table(["조건", "걸린 인원"], M.RULES.map(function (r) { return [r, f.counts[r] + "명"]; }), false, [1]));
+    s1.appendChild(el("p", null, "하나라도 걸린 ", el("b", { class: "num", text: f.dropped + "명" }), " 제외 → 남은 ", el("b", { class: "num", text: f.passed.length + "명" })));
+    s1.appendChild(el("p", { class: "muted", style: "font-size:.82rem", text: "가상 인물이 바라는 조건(나이·흡연 등)은 내 정보가 없어 이 페이지에서는 검사하지 않습니다. 콘솔 버전(match.py)은 양방향으로 검사합니다." }));
+    box.appendChild(s1);
+
+    if (!res.rows.length) {
+      var worst = M.RULES.slice().sort(function (a, b) { return f.counts[b] - f.counts[a]; })[0];
+      var none = stepCard("!", "조건에 맞는 사람이 없습니다");
+      none.appendChild(el("p", { text: "가장 많이 거른 조건은 '" + worst + "'입니다 (" + f.counts[worst] + "명). 이 조건을 넓혀 다시 찾아보세요." }));
+      box.appendChild(none);
+      return;
+    }
+
+    var s2 = stepCard("2", "문장 비교 (건너뜀)");
+    s2.appendChild(el("p", { class: "muted", text: "콘솔 버전은 자기소개 문장을 로컬 임베딩으로 비교해 비슷한 " + data.K + "명을 먼저 추립니다. 방문자는 자기소개를 쓰지 않으므로 이 단계 없이 통과자 " + f.passed.length + "명 전원을 3단계로 넘깁니다." }));
+    box.appendChild(s2);
+
+    var s3 = stepCard("3", "순위", "100점 규칙 점수에 내 중요항목 가중치(" + data.WEIGHT_IMPORTANT + "배)를 준 호감도 순입니다. 동점이면 가치관 → 생활습관 순. 상위 10명까지 보여 줍니다.");
+    s3.appendChild(table(["순위", "상대", "나이", "사는 곳", "규칙 점수", "호감도"], res.rows.slice(0, 10).map(function (r) {
+      return [r.rank, r.p["번호"] + " " + r.p["이름"], r.p["나이"] + "세", r.p["거주_시"] + " " + r.p["거주_구"], r.total, r.affinity];
+    }), true, [0, 4, 5]));
+    box.appendChild(s3);
+
+    var top = res.rows[0], p = top.p;
+    var s4 = stepCard("4", "48시간 상대와 그 이유");
+    s4.appendChild(el("div", { class: "match-card" },
+      el("h3", { text: p["번호"] + " " + p["이름"] + " · " + p["나이"] + "세 · " + p["거주_시"] + " " + p["거주_구"] + " · " + p["직업군"] }),
+      el("p", { class: "intro", text: p["자기소개"] }),
+      el("p", { class: "muted", style: "font-size:.85rem", text: "관심사 " + M.list(p["관심사"]).join("·") + " · MBTI " + p["MBTI"] + " · 외모 " + M.list(p["외모스타일"]).join("·") })));
+    var bars = el("div", { style: "display:grid;gap:8px" });
+    Object.keys(data.MAX).forEach(function (c) { bars.appendChild(bar(c, top.score[c], data.MAX[c])); });
+    s4.appendChild(bars);
+    s4.appendChild(el("p", { class: "num", text: "규칙 점수 " + top.total + "/100 · 호감도 " + top.affinity }));
+    s4.appendChild(el("p", { class: "reason", text: "→ " + res.reason }));
+
+    var P = data.POINTS;
+    var det = el("details", null, el("summary", { text: "로직 보기: 이 점수가 어떻게 나왔나요?" }),
+      el("div", null,
+        table(["항목", "내가 원한 것", p["이름"] + " 님", "점수"], logicRows(pref, p, top.score), false, [3]),
+        el("p", { class: "muted", style: "font-size:.85rem", text:
+          "점수 규칙: 결혼 시기 같으면 " + P["결혼_같음"] + "·한 칸 차이 " + P["결혼_한칸"] + " / 자녀 계획 같으면 " + P["자녀_같음"] + "·한쪽 모름 " + P["자녀_모름"] +
+          " / 생활습관 항목마다 같으면 " + P["습관_같음"] + "·한 칸 차이 " + P["습관_한칸"] + " / 관심사 1개당 " + P["관심사_개당"] + "(최대 " + P["관심사_최대"] + ")" +
+          " / 연락 빈도 같으면 " + P["연락_같음"] + "·한 칸 차이 " + P["연락_한칸"] + ", MBTI 글자당 " + P["MBTI_글자"] +
+          " / 나이는 원하는 나이대 가운데에서 " + data.AGE_BANDS[0] + "세 이내 " + P["나이_0_2"] + "·" + data.AGE_BANDS[1] + "세 이내 " + P["나이_3_5"] + "·그 밖 " + P["나이_6이상"] +
+          " / 사는 곳 맞으면 " + P["같은구"] + "·다르면 " + P["다른시"] + " / 외모 겹치면 " + P["외모_겹침"] + " / 연봉 충족 " + P["연봉_충족"] + "·학력 한 단계 이내 " + P["학력_한단계"] +
+          ". '상관없음'으로 둔 항목은 만점입니다. 외모·연봉 배점을 작게 둔 것은 오래가는 관계는 가치관·생활습관이 좌우하기 때문입니다." })));
+    s4.appendChild(det);
+    box.appendChild(s4);
+  }
+
+  $("match-btn").addEventListener("click", function () {
+    var pref = readForm();
+    if (pref.ageMin !== ANY && pref.ageMax !== ANY && Number(pref.ageMin) > Number(pref.ageMax)) { $("pref-error").textContent = "나이 최소가 최대보다 큽니다."; return; }
+    if (pref.heightMin !== ANY && pref.heightMax !== ANY && Number(pref.heightMin) > Number(pref.heightMax)) { $("pref-error").textContent = "키 최소가 최대보다 큽니다."; return; }
+    $("pref-error").textContent = "";
+    store(PREF_KEY, pref);
+    render(pref);
+    $("prefs").hidden = true;
+    $("result").hidden = false;
+    window.scrollTo(0, 0);
+  });
+  $("again-btn").addEventListener("click", function () { $("result").hidden = true; $("prefs").hidden = false; window.scrollTo(0, 0); });
+
+  // ------------------------------------------------------------ 시작
+  if (badKey) {
+    $("mode-badge").textContent = "설정 오류";
+    $("gate").textContent = "";
+    $("gate").appendChild(el("p", { class: "error", text: "config.js에 비밀 키(service_role · sb_secret_)가 들어 있어 실행을 멈췄습니다. publishable(anon) 키로 바꿔 주세요." }));
+    return;
+  }
+  $("mode-badge").textContent = live ? "서버 연결: 정원 30명 적용" : "데모 모드: 이 브라우저에만 저장";
+  $("mode-badge").className = "badge " + (live ? "live" : "demo");
+  $("scode-wrap").hidden = !live;
+  showCount();
+
+  fetch("profiles.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (d) {
+    data = d;
+    buildForm();
+    var saved = store(PREF_KEY);
+    if (saved) writeForm(Object.assign(M.emptyPref(), saved));
+    var member = store(MEMBER_KEY);
+    if (member && member.live === live) enter(member);
+  }).catch(function () {
+    $("gate").appendChild(el("p", { class: "error", text: "가상 인물 데이터(profiles.json)를 불러오지 못했습니다. 페이지를 새로 고쳐 주세요." }));
+    $("gate-btn").disabled = true;
+  });
+})();
+</script>
+</body>
+</html>

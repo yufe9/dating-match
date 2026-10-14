@@ -650,6 +650,12 @@ def visual_check(people, results, vecs):
     return bad
 
 
+def export_web(people):
+    """웹 앱(docs/app.html)이 쓸 프로필과 점수표. 파이썬과 웹이 같은 숫자를 쓰게 하려는 것입니다."""
+    return {"profiles": people, "POINTS": POINTS, "MAX": MAX, "SCALES": SCALES, "HABITS": HABITS,
+            "AGE_BANDS": list(AGE_BANDS), "WEIGHT_IMPORTANT": WEIGHT_IMPORTANT, "K": K}
+
+
 def self_check(people, vecs):
     """자체 점검 — 하나라도 어기면 AssertionError."""
     by_id = {p["번호"]: p for p in people}
@@ -881,6 +887,11 @@ def main():
     by_id = {p["번호"]: p for p in people}
     arg = (sys.argv[1] if len(sys.argv) > 1
            else input("번호(M01~M35, W01~W35) 또는 all / season / check: ")).strip().upper()
+    if arg == "EXPORT":  # 임베딩 모델 없이도 되도록 맨 앞에서 처리
+        out = HERE / "docs" / "profiles.json"
+        out.write_text(json.dumps(export_web(people), ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"{out.relative_to(HERE)}에 {len(people)}명과 점수표를 내보냈습니다.")
+        return
     if arg not in ("ALL", "SEASON", "CHECK") and arg not in by_id:
         print(f"'{arg}' 번호가 없습니다. 예: M07, W12, all, season, check")
         sys.exit(1)
