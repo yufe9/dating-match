@@ -1,12 +1,17 @@
 """소개팅 매칭 로직 (콘솔).
 
 1) 거르기(규칙) → 2) 후보 추리기(로컬 임베딩) → 3) 순위 다시 매기기(규칙 점수) → 4) 이유 설명
-실행: python match.py        (번호 입력: M07, W12, all)
-      python match.py M01    (인자로 바로 실행)
+v2 기믹: 5) 각자 다르게 보는 호감도 → 안정 매칭 → 쌍방 확인 → 6) 72시간 여행 → 7) 커플·지원금
+실행: python match.py          (번호 입력: M07, W12, all, season, check)
+      python match.py M01      (한 사람: 1~4단계 + 이번 시즌)
+      python match.py season   (시즌 전체)
+      python match.py check    (자체 점검 + 시각화 기준값 확인)
 """
 import csv
 import hashlib
 import json
+import random
+from collections import Counter
 import sys
 import unicodedata
 from pathlib import Path
@@ -64,6 +69,49 @@ OPTIONAL_NUMBERS = ["희망나이_최소", "희망나이_최대", "희망키_최
 # 1단계 거르기 조건 (본인·같은 성별은 따로 셉니다)
 RULES = ["희망 나이", "흡연", "종교 일치", "자녀 계획 일치", "같은 시 거주", "희망 키"]
 
+# ===================== v2 기믹 설정 (1~4단계에는 영향 없음) =====================
+SEASON = "2026-가을"       # 첫인상·72시간 여행 시드. 바꾸면 모두 새로 섞입니다
+WEIGHT_IMPORTANT = 2.5     # 본인 '중요항목'의 가중치 (나머지 1) → 궁합이 사람마다 달라짐
+FIRST_IMPRESSION = 20      # 첫인상 ±값. A→B와 B→A를 따로 뽑아 '한쪽만 설레는' 경우를 만듭니다
+MATCH_MIN = 60             # 안정 매칭 선호 목록에 넣을 최소 호감도 (미만이면 차라리 혼자)
+PROPOSER = "여"            # 시즌 결과에 쓸 제안 쪽 (시즌마다 번갈아 쓰는 것을 권장)
+MUTUAL_TOP = 2             # 쌍방 확인: 서로의 호감도 상위 몇 위 안에 있어야 하는지
+MUTUAL_MIN = 85            # 쌍방 확인: 양쪽 호감도 최소값
+TRIP_EVENTS = 6            # 72시간 동안 일어나는 이벤트 수
+TRIP_SAME_EVENTS = False   # True면 모든 쌍이 같은 이벤트 순서 (운 대신 궁합만 비교)
+TRIP_LUCK = 4              # 이벤트마다 사람별 운 ±값
+TRIP_EFFECT = {"같음": 1, "한칸": -4, "두칸": -10}  # 여행은 현실 검증: 잘 맞아도 조금, 안 맞으면 크게
+IMPORTANT_BOOST = 1.5      # 이벤트가 내 중요항목이면 효과 배율
+COUPLE_MIN = 85            # 여행 뒤 양쪽 최종 호감도가 이 이상이면 커플
+# 커플 지원금: 현금이 아닌 둘이 함께 쓰는 데이트 바우처. 순위·매칭 계산에는 절대 쓰지 않습니다
+SUBSIDY_TIERS = [(95, 600_000), (90, 400_000), (COUPLE_MIN, 200_000)]  # (평균 최종 호감도 이상, 포인트)
+SUBSIDY_SCHEDULE = [(1, 0.3), (3, 0.3), (6, 0.4)]                      # (유지 개월, 지급 비율)
+
+# 72시간 여행 이벤트 풀: (이름, 시험하는 것, 관련 점수 항목)
+EVENTS = [
+    ("비가 와서 하루 종일 숙소", "주말스타일", "생활습관"),
+    ("밤바다 앞 술자리 제안", "음주", "생활습관"),
+    ("새벽 해돋이 산책", "운동", "생활습관"),
+    ("각자 보내는 반나절", "연락빈도", "성격·소통"),
+    ("유기견 보호소 봉사", "반려동물", "생활습관"),
+    ("모닥불 앞 미래 이야기", "가치관", "가치관"),
+    ("함께 해 보는 취미 체험", "관심사", "관심사"),
+    ("지도 없이 길 잃기", "MBTI J/P", "성격·소통"),
+    ("맛집 웨이팅 2시간", "운", None),
+    ("숙소 앞 깜짝 선물", "운", None),
+]
+
+# 시각화(M06 × W22) 기준값 — 이 숫자가 바뀌면 과제 시각화를 새로 만들어야 합니다
+VISUAL_PAIR = ("M06", "W22")
+VISUAL_ROW_HASH = {"M06": "553343db3de657b0", "W22": "a1c4aee3cb8003e4"}  # 원래 33칸 값의 해시
+VISUAL_EXPECT = {
+    "M06": {"통과": 10, "1위": "W03", "1위점수": 91},
+    "W22": {"통과": 14, "1위": "M22", "1위점수": 100},
+    "점수": {"가치관": 15, "생활습관": 11, "관심사": 5, "성격·소통": 4,
+             "나이": 3, "거주지": 6, "외모스타일": 0, "경제·학력": 5},
+    "걸린조건": ["희망 나이"], "유사도": 0.908,
+}
+
 HERE = Path(__file__).parent
 EMB_FILE = HERE / "embeddings.json"
 NO_MATCH = "조건에 맞는 사람이 없습니다"
@@ -83,6 +131,9 @@ def _check_row(p):
             raise bad(col)
     if len(p.get("MBTI", "")) != 4:
         raise bad("MBTI")
+    imp = _list(p.get("중요항목", ""))
+    if len(imp) > 2 or any(c not in MAX for c in imp):
+        raise bad("중요항목")
 
 
 def load_people():
@@ -92,6 +143,7 @@ def load_people():
         with open(HERE / name, encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f):
                 p = {k: (v or "").strip() for k, v in row.items() if k}
+                p.setdefault("중요항목", "")  # v1 형식 CSV(칸 없음)도 그대로 읽히게
                 _check_row(p)
                 people.append(p)
     ids = [p["번호"] for p in people]
@@ -355,6 +407,249 @@ def recommend(me, people, vecs):
     return {"거르기": f, "후보": cands, "순위": rows, "이유": explain(me, rows[0])}
 
 
+def wildcard(me, r, vecs):
+    """의외의 궁합: 임베딩 상위 K명에 못 들어 3단계에서 빠진 사람 중 규칙 점수 1위 (없으면 None)."""
+    if vecs is None or not r["후보"]:
+        return None  # 임베딩 없이 돌면 통과자 전원이 이미 3단계에 들어갑니다
+    passed = r["거르기"]["통과"]
+    emb_rank = {p["번호"]: i for i, (p, _) in enumerate(shortlist(me, passed, vecs, k=len(passed)), 1)}
+    inside = {p["번호"] for p, _ in r["후보"]}
+    rest = sorted((p for p in passed if p["번호"] not in inside),
+                  key=lambda p: (-sum(rule_score(me, p).values()), p["번호"]))
+    if not rest:
+        return None
+    best = rest[0]
+    total = sum(rule_score(me, best).values())
+    beats = sum(total > row["총점"] for row in r["순위"])  # 후보 K명 중 이 사람보다 점수가 낮은 인원
+    return {"상대": best, "총점": total, "임베딩순위": emb_rank[best["번호"]], "앞선인원": beats}
+
+
+# ------------------------------------------------------------------ 5) 각자 다르게 보기 → 안정 매칭 → 쌍방 확인
+def weights(p):
+    imp = set(_list(p.get("중요항목", "")))
+    return {c: WEIGHT_IMPORTANT if c in imp else 1 for c in MAX}
+
+
+def affinity(a, b):
+    """a가 b를 보는 호감도(100점). 같은 항목 점수에 a의 가중치를 곱하므로 a→b와 b→a가 달라질 수 있습니다."""
+    sc, w = rule_score(a, b), weights(a)
+    return round(100 * sum(sc[c] * w[c] for c in MAX) / sum(MAX[c] * w[c] for c in MAX), 1)
+
+
+def first_impression(a_id, b_id):
+    """a가 b에게 받은 첫인상(±FIRST_IMPRESSION). 방향마다 따로 뽑으므로 서로 다릅니다."""
+    key = f"{SEASON}|첫인상|{a_id}>{b_id}"
+    rng = random.Random(int(hashlib.sha256(key.encode()).hexdigest(), 16))
+    return round(rng.uniform(-FIRST_IMPRESSION, FIRST_IMPRESSION), 1)
+
+
+def season_score(a, b):
+    """시즌 호감도 = 궁합(중요항목 가중) + 첫인상, 0~100으로 자름. (궁합, 첫인상, 호감도)"""
+    fit, imp = affinity(a, b), first_impression(a["번호"], b["번호"])
+    return fit, imp, round(min(100, max(0, fit + imp)), 1)
+
+
+def season_prefs(people, results):
+    """번호 → [(상대 번호, 시즌 호감도), ...] 거르기 통과자 전원을 호감도 높은 순으로."""
+    prefs = {}
+    for p in people:
+        scored = []
+        for q in results[p["번호"]]["거르기"]["통과"]:
+            fit, imp, s = season_score(p, q)
+            scored.append((-s, -(fit + imp), q["번호"], s))  # 100으로 잘린 동점은 자르기 전 값으로 가름
+        prefs[p["번호"]] = [(qid, s) for _, _, qid, s in sorted(scored)]
+    return prefs
+
+
+def arrows(prefs):
+    """호감도 1위를 화살표로 보고 쌍방·짝사랑·인기 집중·삼각관계를 셉니다."""
+    top1 = {pid: lst[0][0] for pid, lst in prefs.items() if lst}
+    mutual = sorted({tuple(sorted((a, b))) for a, b in top1.items() if top1.get(b) == a})
+    one_way = sorted((a, b) for a, b in top1.items() if top1.get(b) != a)
+    votes = Counter(top1.values())
+    popular = sorted(votes.items(), key=lambda t: (-t[1], t[0]))
+    triangles = []
+    for x, n in popular:
+        fans = sorted(a for a, b in top1.items() if b == x)
+        if n == 2 and top1.get(x) in fans:  # 3명 이상이 몰린 경우는 '인기 집중'에 나옵니다
+            triangles.append({"중심": x, "선택": top1[x], "경쟁": [a for a in fans if a != top1[x]]})
+    return {"1위": top1, "쌍방": mutual, "짝사랑": one_way, "인기": popular, "삼각관계": triangles}
+
+
+def _accept(prefs):
+    """안정 매칭에 쓸 선호 목록(MATCH_MIN 이상)과 각자의 순위표."""
+    accept = {pid: [q for q, s in lst if s >= MATCH_MIN] for pid, lst in prefs.items()}
+    return accept, {pid: {q: i for i, q in enumerate(lst)} for pid, lst in accept.items()}
+
+
+def stable_match(prefs, proposer, gender):
+    """게일-섀플리. proposer 성별이 먼저 고백합니다. 번호 → 짝 번호 (양쪽 모두 들어 있음)."""
+    accept, rank_of = _accept(prefs)
+    free = sorted(pid for pid in accept if gender[pid] == proposer)
+    nxt = {pid: 0 for pid in free}
+    holds = {}  # 받는 사람 → 지금 붙잡고 있는 제안자
+    while free:
+        p = free.pop(0)
+        if nxt[p] >= len(accept[p]):
+            continue  # 제안할 사람이 더 없으면 이번 시즌은 혼자
+        r = accept[p][nxt[p]]
+        nxt[p] += 1
+        cur = holds.get(r)
+        if p not in rank_of[r]:
+            free.insert(0, p)  # 상대 목록에 내가 없음 → 바로 다음 사람에게
+        elif cur is None:
+            holds[r] = p
+        elif rank_of[r][p] < rank_of[r][cur]:
+            holds[r] = p
+            free.insert(0, cur)
+        else:
+            free.insert(0, p)
+    pairs = {}
+    for r, p in holds.items():
+        pairs[p], pairs[r] = r, p
+    return pairs
+
+
+def blocking_pairs(prefs, pairs):
+    """'서로 지금 짝보다 상대를 더 원하는' 쌍 목록. 비어 있어야 안정 매칭입니다."""
+    accept, rank_of = _accept(prefs)
+    out = []
+    for a, lst in accept.items():
+        for b in lst:
+            if pairs.get(a) == b or a not in rank_of[b]:
+                continue
+            a_wants = a not in pairs or rank_of[a][b] < rank_of[a][pairs[a]]
+            b_wants = b not in pairs or rank_of[b][a] < rank_of[b][pairs[b]]
+            if a_wants and b_wants:
+                out.append((a, b))
+    return out
+
+
+def mutual_check(a, b, prefs, pairs):
+    """쌍방 확인 세 조건 → {조건 이름: 통과 여부}. 셋 다 통과해야 72시간 여행.
+
+    shortcut: 통과자가 MUTUAL_TOP명 이하인 사람에게는 '상위 N위' 조건이 늘 참입니다.
+    선택지가 적은 사람을 불리하게 만들지 않으려고 둔 것이며, 더 엄격하게 하려면 통과자 수 조건을 추가하세요.
+    """
+    top_a = [q for q, _ in prefs[a][:MUTUAL_TOP]]
+    top_b = [q for q, _ in prefs[b][:MUTUAL_TOP]]
+    sa, sb = dict(prefs[a]).get(b, 0), dict(prefs[b]).get(a, 0)
+    return {"안정 매칭 짝": pairs.get(a) == b,
+            f"서로 상위 {MUTUAL_TOP}위": b in top_a and a in top_b,
+            f"양쪽 호감도 {MUTUAL_MIN}+": min(sa, sb) >= MUTUAL_MIN}
+
+
+# ------------------------------------------------------------------ 6) 72시간 여행 → 7) 커플·지원금
+def trip_rng(a_id, b_id):
+    """쌍 전용 난수. 번호를 정렬해 넣으므로 누가 조회해도 같은 여행입니다 (파이썬 hash()는 실행마다 바뀌어 쓰지 않음)."""
+    key = SEASON if TRIP_SAME_EVENTS else f"{SEASON}|{'|'.join(sorted([a_id, b_id]))}"
+    return random.Random(int(hashlib.sha256(key.encode()).hexdigest(), 16))
+
+
+def _event_kind(test, a, b):
+    """이벤트가 시험하는 성향을 비교해 '같음'·'한칸'·'두칸'·'운' 중 하나."""
+    if test == "운":
+        return "운"
+    if test in SCALES:
+        d = _step(test, a[test], b[test])
+    elif test == "가치관":
+        s = rule_score(a, b)["가치관"]
+        d = 0 if s == MAX["가치관"] else 1 if s >= MAX["가치관"] / 2 else 2
+    elif test == "관심사":
+        n = len(shared_interests(a, b))
+        d = 0 if n >= 2 else 1 if n == 1 else 2
+    else:  # MBTI J/P — 길 잃었을 때 계획파와 즉흥파
+        d = 0 if a["MBTI"][3] == b["MBTI"][3] else 2
+    return ("같음", "한칸", "두칸")[d]
+
+
+def run_trip(a, b, start):
+    """72시간 여행. start = {번호: 시작 호감도}. 같은 쌍·같은 시즌이면 항상 같은 결과."""
+    m, w = (a, b) if a["성별"] == "남" else (b, a)  # 순서를 고정해 조회 방향과 무관하게
+    rng = trip_rng(m["번호"], w["번호"])
+    now = {m["번호"]: start[m["번호"]], w["번호"]: start[w["번호"]]}
+    log = []
+    for name, test, cat in rng.sample(EVENTS, TRIP_EVENTS):
+        kind = _event_kind(test, m, w)
+        base = 0 if kind == "운" else TRIP_EFFECT[kind]
+        delta = {}
+        for p in (m, w):
+            boost = IMPORTANT_BOOST if cat and cat in _list(p.get("중요항목", "")) else 1
+            raw = base * boost + rng.randint(-TRIP_LUCK, TRIP_LUCK)
+            new = round(min(100, max(0, now[p["번호"]] + raw)), 1)
+            delta[p["번호"]] = round(new - now[p["번호"]], 1)  # 0~100으로 자른 뒤 실제로 바뀐 만큼
+            now[p["번호"]] = new
+        log.append({"이벤트": name, "시험": test, "결과": kind, "변화": delta, "호감도": dict(now)})
+    return {"로그": log, "최종": now, "커플": min(now.values()) >= COUPLE_MIN}
+
+
+def subsidy(final):
+    """커플 지원금(데이트 바우처). 마지막 회차가 나머지를 받아 분할 합계가 총액과 정확히 같습니다."""
+    avg = sum(final.values()) / len(final)
+    total = next((pts for th, pts in SUBSIDY_TIERS if avg >= th), 0)
+    plan, paid = [], 0
+    for i, (month, ratio) in enumerate(SUBSIDY_SCHEDULE):
+        amt = total - paid if i == len(SUBSIDY_SCHEDULE) - 1 else round(total * ratio)
+        plan.append((month, amt))
+        paid += amt
+    return {"평균": round(avg, 1), "총액": total, "분할": plan}
+
+
+def run_season(people, results):
+    """시즌 전체: 화살표 → 안정 매칭(양방향) → 쌍방 확인 → 여행 → 커플·지원금."""
+    by_id = {p["번호"]: p for p in people}
+    gender = {p["번호"]: p["성별"] for p in people}
+    prefs = season_prefs(people, results)
+    both = {g: stable_match(prefs, g, gender) for g in ("남", "여")}
+    pairs = both[PROPOSER]
+    changed = sorted(pid for pid in prefs if both["남"].get(pid) != both["여"].get(pid))
+    entries = {}
+    for m in sorted(pid for pid in pairs if gender[pid] == "남"):
+        w = pairs[m]
+        start = {m: dict(prefs[m])[w], w: dict(prefs[w])[m]}
+        e = {"남": m, "여": w, "호감도": start, "확인": mutual_check(m, w, prefs, pairs)}
+        if all(e["확인"].values()):
+            e["여행"] = run_trip(by_id[m], by_id[w], start)
+            if e["여행"]["커플"]:
+                e["지원금"] = subsidy(e["여행"]["최종"])  # 커플이 정해진 뒤에만 계산 — 선택에 영향 없음
+        entries[m] = entries[w] = e
+    return {"선호": prefs, "화살표": arrows(prefs), "매칭": both, "달라진": changed, "쌍": entries}
+
+
+def visual_check(people, results, vecs):
+    """과제 시각화(M06 × W22)에 쓴 숫자가 그대로인지. 어긋난 항목 목록 (빈 목록이면 정상)."""
+    by_id = {p["번호"]: p for p in people}
+    bad = []
+    for pid, h in VISUAL_ROW_HASH.items():
+        p = by_id.get(pid)
+        if p is None:
+            bad.append(f"{pid}가 없습니다")
+            continue
+        raw = "|".join(v for k, v in p.items() if k != "중요항목")
+        if hashlib.sha256(raw.encode()).hexdigest()[:16] != h:
+            bad.append(f"{pid}의 프로필 값이 바뀌었습니다")
+        if p.get("중요항목"):
+            bad.append(f"{pid}의 중요항목이 비어 있지 않습니다")
+        exp, r = VISUAL_EXPECT[pid], results[pid]
+        got = (len(r["거르기"]["통과"]), r["순위"][0]["상대"]["번호"] if r["순위"] else None,
+               r["순위"][0]["총점"] if r["순위"] else None)
+        if got != (exp["통과"], exp["1위"], exp["1위점수"]):
+            bad.append(f"{pid}의 통과 인원·1위가 바뀌었습니다: {got}")
+    if not bad:
+        m, w = (by_id[x] for x in VISUAL_PAIR)
+        if rule_score(m, w) != VISUAL_EXPECT["점수"]:
+            bad.append("M06 × W22 규칙 점수가 바뀌었습니다")
+        hit = [rule for rule in RULES if _fails(rule, m, w) and _fails(rule, w, m)]
+        any_hit = [rule for rule in RULES if _fails(rule, m, w) or _fails(rule, w, m)]
+        if hit != VISUAL_EXPECT["걸린조건"] or any_hit != VISUAL_EXPECT["걸린조건"]:
+            bad.append(f"M06 × W22 거르기 결과가 바뀌었습니다: {any_hit}")
+        if vecs is not None:
+            sim = round(sum(a * b for a, b in zip(vecs[m["번호"]], vecs[w["번호"]])), 3)
+            if sim != VISUAL_EXPECT["유사도"]:
+                bad.append(f"M06 × W22 임베딩 유사도가 바뀌었습니다: {sim}")
+    return bad
+
+
 def self_check(people, vecs):
     """자체 점검 — 하나라도 어기면 AssertionError."""
     by_id = {p["번호"]: p for p in people}
@@ -376,7 +671,33 @@ def self_check(people, vecs):
     # 4) 같은 입력이면 순위가 항상 똑같다
     again = recommend(me, people, vecs)
     assert [x["상대"]["번호"] for x in again["순위"]] == [x["상대"]["번호"] for x in r["순위"]]
-    return results
+
+    # --- v2 기믹 점검 ---
+    assert PROPOSER in ("남", "여"), f"PROPOSER는 '남' 또는 '여'여야 합니다: {PROPOSER!r}"
+    season = run_season(people, results)
+    # 5) 중요항목이 없으면 궁합 = 규칙 점수를 100점으로 환산한 값 (가중치는 시즌 호감도에만 영향)
+    plain = round(100 * sum(rule_score(me, other).values()) / sum(MAX.values()), 1)
+    assert affinity(dict(me, 중요항목=""), other) == plain
+    # 5-1) 시즌 호감도는 0~100 안이고 높은 순으로 정렬돼 있다
+    for lst in season["선호"].values():
+        scores = [s for _, s in lst]
+        assert all(0 <= s <= 100 for s in scores) and scores == sorted(scores, reverse=True)
+    # 6) blocking_pairs가 실제로 찾아낸다 (서로 원하는데 둘 다 혼자인 쌍) — 아래 검사가 헛돌지 않게
+    assert blocking_pairs({"A": [("B", 99)], "B": [("A", 99)]}, {}) == [("A", "B"), ("B", "A")]
+    # 6-1) 두 방향 안정 매칭 모두 '서로 더 원하는 쌍'이 없고, 짝은 서로 MATCH_MIN 이상인 반대 성별
+    for pairs in season["매칭"].values():
+        assert not blocking_pairs(season["선호"], pairs)
+        for a, b in pairs.items():
+            assert pairs[b] == a and by_id[a]["성별"] != by_id[b]["성별"]
+            assert dict(season["선호"][a])[b] >= MATCH_MIN
+    # 7) 72시간 여행은 조회 방향과 무관하게 같은 결과, 지원금 분할 합계 = 총액
+    for e in season["쌍"].values():
+        if "여행" in e:
+            m, w = by_id[e["남"]], by_id[e["여"]]
+            assert run_trip(w, m, e["호감도"]) == e["여행"]
+        if "지원금" in e:
+            assert sum(a for _, a in e["지원금"]["분할"]) == e["지원금"]["총액"] > 0
+    return results, season
 
 
 # ------------------------------------------------------------------ 출력 (main에서만)
@@ -434,6 +755,110 @@ def print_one(me, r, emb_err):
     print(f"   → {r['이유']}")
 
 
+def _nm(pid, by_id):
+    return f"{pid} {by_id[pid]['이름']}"
+
+
+def _ox(ok):
+    return "○" if ok else "×"
+
+
+def print_wildcard(wc):
+    print("\n[5 의외의 궁합] 임베딩 후보에는 못 들었지만 규칙 점수가 높은 사람")
+    if wc is None:
+        print("   통과자 전원이 이미 3단계 후보에 들어가 따로 뽑을 사람이 없습니다.")
+        return
+    p = wc["상대"]
+    print(f"   {_who(p)}: 임베딩 {wc['임베딩순위']}위라 후보 {K}명에서 빠졌지만 규칙 점수 {wc['총점']:g}점"
+          f" (후보 {K}명 중 {wc['앞선인원']}명보다 높음)")
+
+
+def print_my_season(me, season, by_id):
+    pid = me["번호"]
+    prefs, e = season["선호"][pid], season["쌍"].get(pid)
+    print(f"\n[6 이번 시즌 {SEASON}] 호감도 = 궁합(항목 점수 × 내 중요항목 {WEIGHT_IMPORTANT}배) + 첫인상(±{FIRST_IMPRESSION})"
+          f" · 내 중요항목: {me.get('중요항목') or '없음(균형형)'}")
+    if not prefs:
+        print("   거르기 통과자가 없어 이번 시즌에 참가하지 못했습니다.")
+        return
+    print("   내가 보는 호감도 상위 3명 (오른쪽 = 상대가 나를 보는 호감도)")
+    for i, (q, s) in enumerate(prefs[:3], 1):
+        fit, imp, _ = season_score(me, by_id[q])
+        back = dict(season["선호"][q]).get(pid, 0)
+        print(f"   {i}. {_pad(_nm(q, by_id), 14)} {s:>5.1f} (궁합 {fit:5.1f} · 첫인상 {imp:+5.1f})   상대→나 {back:5.1f}")
+    m_pair, w_pair = season["매칭"]["남"].get(pid), season["매칭"]["여"].get(pid)
+    show = lambda x: _nm(x, by_id) if x else "짝 없음"
+    print(f"   안정 매칭: 남 제안 → {show(m_pair)} / 여 제안 → {show(w_pair)}  (시즌 결과는 {PROPOSER} 제안)")
+    if e is None:
+        print(f"   → 호감도 {MATCH_MIN}점 이상인 상대와 짝이 맺어지지 않아 이번 시즌은 혼자입니다.")
+        return
+    mate = e["여"] if e["남"] == pid else e["남"]
+    print("   쌍방 확인: " + "  ".join(f"{_ox(ok)} {k}" for k, ok in e["확인"].items()))
+    if "여행" not in e:
+        print(f"   → {_nm(mate, by_id)} 님과 짝이 됐지만 쌍방 확인을 통과하지 못해 여행은 가지 않습니다.")
+        return
+    print(f"\n   [72시간 여행] {_nm(pid, by_id)} × {_nm(mate, by_id)}  시작 호감도 "
+          f"{e['호감도'][pid]:.1f} / {e['호감도'][mate]:.1f}")
+    label = {"같음": "잘 맞음", "한칸": "그럭저럭", "두칸": "부딪힘", "운": "운"}
+    for i, ev in enumerate(e["여행"]["로그"], 1):
+        d, now = ev["변화"], ev["호감도"]
+        print(f"   {i}. {_pad(ev['이벤트'], 24)} {_pad(label[ev['결과']], 8)}"
+              f" 나 {d[pid]:+5.1f} · 상대 {d[mate]:+5.1f}  → {now[pid]:5.1f} / {now[mate]:5.1f}")
+    fin = e["여행"]["최종"]
+    print(f"\n[7 최종 선택] 최종 호감도 {fin[pid]:.1f} / {fin[mate]:.1f} (기준 {COUPLE_MIN})")
+    if not e["여행"]["커플"]:
+        print("   → 한쪽 이상이 기준에 못 미쳐 커플이 되지 않았습니다.")
+        return
+    s = e["지원금"]
+    plan = " · ".join(f"{mo}개월 {amt:,}P" for mo, amt in s["분할"])
+    print(f"   → 커플 성사! 데이트 바우처 {s['총액']:,}P (평균 {s['평균']}) 분할 지급: {plan}")
+
+
+def print_season(people, season):
+    by_id = {p["번호"]: p for p in people}
+    nm = lambda x: _nm(x, by_id)
+    ar = season["화살표"]
+    print(f"\n[시즌 {SEASON}] 호감도 = 궁합(8개 항목 점수 × 본인 중요항목 {WEIGHT_IMPORTANT}배) + 첫인상(±{FIRST_IMPRESSION})")
+
+    print("\n① 엇갈린 화살표 (각자 호감도 1위 기준)")
+    print(f"   쌍방 {len(ar['쌍방'])}쌍: " + ", ".join(f"{a}↔{b}" for a, b in ar["쌍방"]))
+    print(f"   짝사랑 {len(ar['짝사랑'])}건: " + ", ".join(f"{a}→{b}" for a, b in ar["짝사랑"]))
+    print("   인기 집중: " + ", ".join(f"{nm(x)} {n}표" for x, n in ar["인기"][:3]))
+    for t in ar["삼각관계"]:
+        print(f"   삼각관계: {nm(t['중심'])} 님을 두고 {', '.join(t['경쟁'] + [t['선택']])} "
+              f"→ {nm(t['중심'])} 님의 선택은 {t['선택']}")
+
+    both, gender = season["매칭"], {p["번호"]: p["성별"] for p in people}
+    count = {g: sum(1 for pid in both[g] if gender[pid] == "남") for g in both}
+    print("\n② 안정 매칭 (서로 지금 짝보다 상대를 더 원하는 쌍이 없는 조합)")
+    print(f"   남 제안 {count['남']}쌍 · 여 제안 {count['여']}쌍 · 제안 쪽에 따라 짝이 달라진 사람 "
+          f"{len(season['달라진'])}명" + (f": {', '.join(season['달라진'])}" if season["달라진"] else ""))
+    print(f"   시즌 결과는 '{PROPOSER}' 제안 기준입니다.")
+
+    pairs = sorted({id(e): e for e in season["쌍"].values()}.values(), key=lambda e: e["남"])
+    print(f"\n③ 쌍방 확인 → 72시간 여행 자격 (세 조건 모두: 안정 매칭 짝 · 서로 상위 {MUTUAL_TOP}위 · 양쪽 호감도 {MUTUAL_MIN}+)")
+    for e in pairs:
+        m, w = e["남"], e["여"]
+        marks = " ".join(_ox(ok) for ok in e["확인"].values())
+        print(f"   {_pad(nm(m), 12)} × {_pad(nm(w), 14)} 호감도 {e['호감도'][m]:5.1f} / {e['호감도'][w]:5.1f}"
+              f"   {marks}   {'→ 여행' if '여행' in e else ''}")
+
+    trips = [e for e in pairs if "여행" in e]
+    print(f"\n④ 72시간 여행 결과 ({len(trips)}쌍, 커플 기준: 양쪽 최종 호감도 {COUPLE_MIN}+)")
+    for e in trips:
+        m, w, t = e["남"], e["여"], e["여행"]
+        print(f"   {_pad(nm(m), 12)} × {_pad(nm(w), 14)} {e['호감도'][m]:5.1f}/{e['호감도'][w]:5.1f}"
+              f" → {t['최종'][m]:5.1f}/{t['최종'][w]:5.1f}   {'커플 성사' if t['커플'] else '엇갈림'}")
+
+    couples = [e for e in trips if "지원금" in e]
+    total = sum(e["지원금"]["총액"] for e in couples)
+    print(f"\n⑤ 커플 {len(couples)}쌍 · 데이트 바우처 총 {total:,}P (현금 아님, 1·3·6개월 유지 시 분할 지급)")
+    for e in couples:
+        s = e["지원금"]
+        plan = " · ".join(f"{mo}개월 {amt:,}" for mo, amt in s["분할"])
+        print(f"   {_pad(nm(e['남']), 12)} × {_pad(nm(e['여']), 14)} 평균 {s['평균']:5.1f} → {s['총액']:,}P ({plan})")
+
+
 def print_all(people, results):
     print(f"\n[all] {len(people)}명 전원의 1위")
     for p in people:
@@ -454,9 +879,10 @@ def main():
         print(f"프로필 CSV를 읽지 못했습니다: {e}")
         sys.exit(1)
     by_id = {p["번호"]: p for p in people}
-    arg = (sys.argv[1] if len(sys.argv) > 1 else input("번호(M01~M35, W01~W35) 또는 all: ")).strip().upper()
-    if arg != "ALL" and arg not in by_id:
-        print(f"'{arg}' 번호가 없습니다. 예: M07, W12, all")
+    arg = (sys.argv[1] if len(sys.argv) > 1
+           else input("번호(M01~M35, W01~W35) 또는 all / season / check: ")).strip().upper()
+    if arg not in ("ALL", "SEASON", "CHECK") and arg not in by_id:
+        print(f"'{arg}' 번호가 없습니다. 예: M07, W12, all, season, check")
         sys.exit(1)
 
     vecs, emb_err, fresh = load_embeddings(people)
@@ -465,13 +891,26 @@ def main():
     elif fresh:
         print(f"(임베딩 {fresh}명 새로 계산 → {EMB_FILE.name}에 저장)")
 
-    results = self_check(people, vecs)
+    results, season = self_check(people, vecs)
     print("(자체 점검 통과: 본인·같은 성별 제외 / 흡연 불가 / 통과자 0명 안내 / 순위 재현성)")
 
     if arg == "ALL":
         print_all(people, results)
+    elif arg == "SEASON":
+        print_season(people, season)
+    elif arg == "CHECK":
+        print("(v2 점검 통과: 중요항목 없으면 호감도 = 규칙 점수 / 두 방향 안정 매칭 / 여행 재현성 / 지원금 분할 합계)")
+        bad = visual_check(people, results, vecs)
+        if bad:
+            print("시각화(M06 × W22) 기준값이 바뀌었습니다:\n   - " + "\n   - ".join(bad))
+            sys.exit(1)
+        note = "" if vecs is not None else " (임베딩 유사도는 모델이 없어 확인하지 못함)"
+        print(f"시각화(M06 × W22) 기준값 일치: 프로필 원본 · 통과 인원 · 1위 · 49점 · 거르기 · 유사도{note}")
     else:
         print_one(by_id[arg], results[arg], emb_err)
+        if results[arg]["순위"]:
+            print_wildcard(wildcard(by_id[arg], results[arg], vecs))
+        print_my_season(by_id[arg], season, by_id)
 
 
 if __name__ == "__main__":
