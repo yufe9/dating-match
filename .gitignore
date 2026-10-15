@@ -1,3 +1,8 @@
 embeddings.json
 embeddings.tmp
 __pycache__/
+# 설치형 디자인 스킬·로컬 설정 (다시 받는 방법은 CLAUDE.md)
+.claude/
+# taste 스킬 작업 파일: 방향 기록(direction.json)만 커밋
+.taste-skill/*
+!.taste-skill/direction.json

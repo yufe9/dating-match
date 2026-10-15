@@ -1,7 +1,7 @@
 """소개팅 매칭 로직 (콘솔).
 
 1) 거르기(규칙) → 2) 후보 추리기(로컬 임베딩) → 3) 순위 다시 매기기(규칙 점수) → 4) 이유 설명
-v2 기믹: 5) 각자 다르게 보는 호감도 → 안정 매칭 → 쌍방 확인 → 6) 72시간 여행 → 7) 커플·지원금
+v2 기믹: 5) 각자 다르게 보는 호감도 → 안정 매칭 → 쌍방 확인 → 6) 48시간 여행 → 7) 커플·지원금
 실행: python match.py          (번호 입력: M07, W12, all, season, check)
       python match.py M01      (한 사람: 1~4단계 + 이번 시즌)
       python match.py season   (시즌 전체)
@@ -70,14 +70,14 @@ OPTIONAL_NUMBERS = ["희망나이_최소", "희망나이_최대", "희망키_최
 RULES = ["희망 나이", "흡연", "종교 일치", "자녀 계획 일치", "같은 시 거주", "희망 키"]
 
 # ===================== v2 기믹 설정 (1~4단계에는 영향 없음) =====================
-SEASON = "2026-가을"       # 첫인상·72시간 여행 시드. 바꾸면 모두 새로 섞입니다
+SEASON = "2026-가을"       # 첫인상·48시간 여행 시드. 바꾸면 모두 새로 섞입니다
 WEIGHT_IMPORTANT = 2.5     # 본인 '중요항목'의 가중치 (나머지 1) → 궁합이 사람마다 달라짐
 FIRST_IMPRESSION = 20      # 첫인상 ±값. A→B와 B→A를 따로 뽑아 '한쪽만 설레는' 경우를 만듭니다
 MATCH_MIN = 60             # 안정 매칭 선호 목록에 넣을 최소 호감도 (미만이면 차라리 혼자)
 PROPOSER = "여"            # 시즌 결과에 쓸 제안 쪽 (시즌마다 번갈아 쓰는 것을 권장)
 MUTUAL_TOP = 2             # 쌍방 확인: 서로의 호감도 상위 몇 위 안에 있어야 하는지
 MUTUAL_MIN = 85            # 쌍방 확인: 양쪽 호감도 최소값
-TRIP_EVENTS = 6            # 72시간 동안 일어나는 이벤트 수
+TRIP_EVENTS = 4            # 48시간 동안 일어나는 이벤트 수 (12시간에 하나)
 TRIP_SAME_EVENTS = False   # True면 모든 쌍이 같은 이벤트 순서 (운 대신 궁합만 비교)
 TRIP_LUCK = 4              # 이벤트마다 사람별 운 ±값
 TRIP_EFFECT = {"같음": 1, "한칸": -4, "두칸": -10}  # 여행은 현실 검증: 잘 맞아도 조금, 안 맞으면 크게
@@ -87,7 +87,7 @@ COUPLE_MIN = 85            # 여행 뒤 양쪽 최종 호감도가 이 이상이
 SUBSIDY_TIERS = [(95, 600_000), (90, 400_000), (COUPLE_MIN, 200_000)]  # (평균 최종 호감도 이상, 포인트)
 SUBSIDY_SCHEDULE = [(1, 0.3), (3, 0.3), (6, 0.4)]                      # (유지 개월, 지급 비율)
 
-# 72시간 여행 이벤트 풀: (이름, 시험하는 것, 관련 점수 항목)
+# 48시간 여행 이벤트 풀: (이름, 시험하는 것, 관련 점수 항목)
 EVENTS = [
     ("비가 와서 하루 종일 숙소", "주말스타일", "생활습관"),
     ("밤바다 앞 술자리 제안", "음주", "생활습관"),
@@ -526,7 +526,7 @@ def blocking_pairs(prefs, pairs):
 
 
 def mutual_check(a, b, prefs, pairs):
-    """쌍방 확인 세 조건 → {조건 이름: 통과 여부}. 셋 다 통과해야 72시간 여행.
+    """쌍방 확인 세 조건 → {조건 이름: 통과 여부}. 셋 다 통과해야 48시간 여행.
 
     shortcut: 통과자가 MUTUAL_TOP명 이하인 사람에게는 '상위 N위' 조건이 늘 참입니다.
     선택지가 적은 사람을 불리하게 만들지 않으려고 둔 것이며, 더 엄격하게 하려면 통과자 수 조건을 추가하세요.
@@ -539,7 +539,7 @@ def mutual_check(a, b, prefs, pairs):
             f"양쪽 호감도 {MUTUAL_MIN}+": min(sa, sb) >= MUTUAL_MIN}
 
 
-# ------------------------------------------------------------------ 6) 72시간 여행 → 7) 커플·지원금
+# ------------------------------------------------------------------ 6) 48시간 여행 → 7) 커플·지원금
 def trip_rng(a_id, b_id):
     """쌍 전용 난수. 번호를 정렬해 넣으므로 누가 조회해도 같은 여행입니다 (파이썬 hash()는 실행마다 바뀌어 쓰지 않음)."""
     key = SEASON if TRIP_SAME_EVENTS else f"{SEASON}|{'|'.join(sorted([a_id, b_id]))}"
@@ -564,7 +564,7 @@ def _event_kind(test, a, b):
 
 
 def run_trip(a, b, start):
-    """72시간 여행. start = {번호: 시작 호감도}. 같은 쌍·같은 시즌이면 항상 같은 결과."""
+    """48시간 여행. start = {번호: 시작 호감도}. 같은 쌍·같은 시즌이면 항상 같은 결과."""
     m, w = (a, b) if a["성별"] == "남" else (b, a)  # 순서를 고정해 조회 방향과 무관하게
     rng = trip_rng(m["번호"], w["번호"])
     now = {m["번호"]: start[m["번호"]], w["번호"]: start[w["번호"]]}
@@ -653,7 +653,11 @@ def visual_check(people, results, vecs):
 def export_web(people):
     """웹 앱(docs/app.html)이 쓸 프로필과 점수표. 파이썬과 웹이 같은 숫자를 쓰게 하려는 것입니다."""
     return {"profiles": people, "POINTS": POINTS, "MAX": MAX, "SCALES": SCALES, "HABITS": HABITS,
-            "AGE_BANDS": list(AGE_BANDS), "WEIGHT_IMPORTANT": WEIGHT_IMPORTANT, "K": K}
+            "AGE_BANDS": list(AGE_BANDS), "WEIGHT_IMPORTANT": WEIGHT_IMPORTANT, "K": K,
+            # 48시간 여행 규칙 — 웹의 여행 재생도 같은 이벤트·효과·커플 기준을 씁니다
+            "EVENTS": [list(e) for e in EVENTS], "TRIP_EVENTS": TRIP_EVENTS, "TRIP_EFFECT": TRIP_EFFECT,
+            "TRIP_LUCK": TRIP_LUCK, "IMPORTANT_BOOST": IMPORTANT_BOOST, "COUPLE_MIN": COUPLE_MIN,
+            "FIRST_IMPRESSION": FIRST_IMPRESSION}
 
 
 def self_check(people, vecs):
@@ -696,7 +700,7 @@ def self_check(people, vecs):
         for a, b in pairs.items():
             assert pairs[b] == a and by_id[a]["성별"] != by_id[b]["성별"]
             assert dict(season["선호"][a])[b] >= MATCH_MIN
-    # 7) 72시간 여행은 조회 방향과 무관하게 같은 결과, 지원금 분할 합계 = 총액
+    # 7) 48시간 여행은 조회 방향과 무관하게 같은 결과, 지원금 분할 합계 = 총액
     for e in season["쌍"].values():
         if "여행" in e:
             m, w = by_id[e["남"]], by_id[e["여"]]
@@ -803,7 +807,7 @@ def print_my_season(me, season, by_id):
     if "여행" not in e:
         print(f"   → {_nm(mate, by_id)} 님과 짝이 됐지만 쌍방 확인을 통과하지 못해 여행은 가지 않습니다.")
         return
-    print(f"\n   [72시간 여행] {_nm(pid, by_id)} × {_nm(mate, by_id)}  시작 호감도 "
+    print(f"\n   [48시간 여행] {_nm(pid, by_id)} × {_nm(mate, by_id)}  시작 호감도 "
           f"{e['호감도'][pid]:.1f} / {e['호감도'][mate]:.1f}")
     label = {"같음": "잘 맞음", "한칸": "그럭저럭", "두칸": "부딪힘", "운": "운"}
     for i, ev in enumerate(e["여행"]["로그"], 1):
@@ -842,7 +846,7 @@ def print_season(people, season):
     print(f"   시즌 결과는 '{PROPOSER}' 제안 기준입니다.")
 
     pairs = sorted({id(e): e for e in season["쌍"].values()}.values(), key=lambda e: e["남"])
-    print(f"\n③ 쌍방 확인 → 72시간 여행 자격 (세 조건 모두: 안정 매칭 짝 · 서로 상위 {MUTUAL_TOP}위 · 양쪽 호감도 {MUTUAL_MIN}+)")
+    print(f"\n③ 쌍방 확인 → 48시간 여행 자격 (세 조건 모두: 안정 매칭 짝 · 서로 상위 {MUTUAL_TOP}위 · 양쪽 호감도 {MUTUAL_MIN}+)")
     for e in pairs:
         m, w = e["남"], e["여"]
         marks = " ".join(_ox(ok) for ok in e["확인"].values())
@@ -850,7 +854,7 @@ def print_season(people, season):
               f"   {marks}   {'→ 여행' if '여행' in e else ''}")
 
     trips = [e for e in pairs if "여행" in e]
-    print(f"\n④ 72시간 여행 결과 ({len(trips)}쌍, 커플 기준: 양쪽 최종 호감도 {COUPLE_MIN}+)")
+    print(f"\n④ 48시간 여행 결과 ({len(trips)}쌍, 커플 기준: 양쪽 최종 호감도 {COUPLE_MIN}+)")
     for e in trips:
         m, w, t = e["남"], e["여"], e["여행"]
         print(f"   {_pad(nm(m), 12)} × {_pad(nm(w), 14)} {e['호감도'][m]:5.1f}/{e['호감도'][w]:5.1f}"

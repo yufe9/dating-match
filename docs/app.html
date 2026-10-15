@@ -5,167 +5,535 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co">
 <title>48시간 소개팅</title>
+<meta name="description" content="여행하며 상대를 알아가는 소개팅. 여행 취향 카드 16장으로 어울리는 도시와 그 도시의 사람을 찾고, 48시간 여행을 함께 떠나 봅니다.">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<script>document.documentElement.classList.add("js")</script>
 <style>
-/* 레이아웃: 한 줄기 화면 — 가입 → 취향 고르기 → 결과(4단계). 결과는 단계 카드가 위에서 아래로 쌓입니다 */
+/* 구조: 페이지 전체가 한 장의 탑승권 묶음입니다. 입장권 → 출발 준비 → 카드 16장 → 목적지 발권 → 후보(탑승객) → 48시간 일정표 → 로직 공개.
+   색은 여행지마다 바뀝니다(html[data-city]). 카드를 고르는 동안에도 지금 기울어진 도시의 색으로 바뀝니다. */
 :root {
-  --bg: #f5f4f8; --surface: #ffffff; --ink: #1d1b26; --muted: #5e5a6e; --line: #dedbe7;
-  --accent: #6a46c9; --accent-ink: #ffffff; --soft: #efeafc; --ok: #2c8448; --bad: #c03a3a;
-  --display: "Hahmlet", "Noto Serif KR", "Batang", serif;
-  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  --field: #dedad3; --paper: #f3f2ef; --paper-2: #e6e4df; --ink: #0a0a0a; --muted: #55514a;
+  --accent: #256f82; --accent-ink: #ffffff; --on-field: #0a0a0a; --on-field-muted: #3f3c37;
+  --display: "Gowun Batang", "Nanum Myeongjo", "Batang", serif;
+  --text: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --s-small: 0.875rem;
+  --s-body: clamp(1.0625rem, 1.02rem + 0.2vw, 1.1875rem);
+  --s-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --s-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
+  --s-display: clamp(3.4rem, 1.6rem + 7vw, 7.5rem);
+  --m: clamp(16px, 3.2vw, 40px);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms; --t-reveal: 800ms;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121119; --surface: #1b1a25; --ink: #ebe8f3; --muted: #a29db5; --line: #2e2b3b;
-    --accent: #a98bf0; --accent-ink: #15131c; --soft: #262036; --ok: #5bc07a; --bad: #ee6d6d; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #121119; --surface: #1b1a25; --ink: #ebe8f3; --muted: #a29db5; --line: #2e2b3b;
-  --accent: #a98bf0; --accent-ink: #15131c; --soft: #262036; --ok: #5bc07a; --bad: #ee6d6d; color-scheme: dark;
-}
+/* 하와이: 석양 — 뜨겁고 열정적 */
+html[data-city="hawaii"] { --field: #e2502a; --paper: #fff3e6; --paper-2: #fbe1cb; --ink: #2a0d05; --muted: #6b3a2a;
+  --accent: #a3123a; --accent-ink: #ffffff; --on-field: #1f0903; --on-field-muted: #3d1307; }
+/* 홍콩: 밤의 옥빛 거리와 네온 — 따뜻하지만 시린 구석 */
+html[data-city="hongkong"] { --field: #0e3a37; --paper: #f5ecdc; --paper-2: #eadcc4; --ink: #141110; --muted: #5a4d40;
+  --accent: #c8102e; --accent-ink: #ffffff; --on-field: #f5ecdc; --on-field-muted: #c9d6cf; }
+/* 삿포로: 얼음빛 눈과 가로등 하나 — 차갑지만 따뜻한 구석 */
+html[data-city="sapporo"] { --field: #c9dce7; --paper: #fbfcfd; --paper-2: #e6eef3; --ink: #0c1a24; --muted: #3f5464;
+  --accent: #a0520f; --accent-ink: #ffffff; --on-field: #0c1a24; --on-field-muted: #2e4352; }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
-.wrap { max-width: 880px; margin: 0 auto; padding-inline: 18px; padding-block: 28px 56px; display: grid; gap: 28px; }
-h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.25; text-wrap: balance; }
-h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); letter-spacing: -.01em; }
-h2 { font-size: 1.25rem; }
-h3 { font-size: 1.05rem; }
+html { background: var(--field); scrollbar-color: var(--muted) var(--field); transition: background-color 700ms ease; }
+body { margin: 0; background: var(--field); color: var(--on-field); font: 400 var(--s-body)/1.55 var(--text);
+  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere; transition: background-color 700ms ease, color 700ms ease; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+[tabindex="-1"]:focus { outline: none; }  /* 화면 전환 때 스크립트로 옮긴 초점은 테두리 없이 */
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; }
 p { margin: 0; }
+a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+.num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-.eyebrow { font-size: .75rem; font-weight: 600; letter-spacing: .08em; color: var(--muted); }
+img { display: block; max-width: 100%; height: auto; }
 
-.top { display: grid; gap: 10px; }
-.badges { display: flex; flex-wrap: wrap; gap: 8px; }
-.badge { font-size: .8rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
-.badge.live { border-color: var(--ok); color: var(--ok); }
-.badge.demo { border-color: var(--muted); color: var(--muted); }
+main { position: relative; z-index: 1; background: var(--field); transition: background-color 700ms ease; padding-bottom: 160px; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 24px var(--m); flex-wrap: wrap; }
+.wordmark { font-family: var(--display); font-weight: 700; font-size: var(--s-lead); text-decoration: none; }
+.status { display: flex; gap: 20px; flex-wrap: wrap; font-size: var(--s-small); color: var(--on-field-muted); align-items: baseline; }
+.linkish { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; }
 
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: grid; gap: 16px; min-width: 0; }
-.notice { font-size: .85rem; color: var(--muted); background: var(--soft); border-radius: 8px; padding: 12px 14px; }
-.error { color: var(--bad); font-weight: 600; font-size: .9rem; }
+.screen { padding: 24px var(--m) 0; }
+
+/* ------------------------------------------------ 탑승권 (모든 종이의 공통 모양) */
+.ticket { position: relative; background: var(--paper); color: var(--ink); display: grid; max-width: 1240px; margin: 0 auto;
+  grid-template-columns: minmax(0, 1.7fr) 0 minmax(0, 1fr); border-radius: 10px; }
+.perf { position: relative; border-left: 6px dotted var(--field); margin: 28px 0; transition: border-color 700ms ease; }
+.perf::before, .perf::after { content: ""; position: absolute; left: -20px; width: 34px; height: 34px; border-radius: 50%; background: var(--field);
+  transition: background-color 700ms ease; }
+.perf::before { top: -46px; } .perf::after { bottom: -46px; }
+.part { padding: clamp(28px, 4vw, 64px); min-width: 0; display: grid; gap: 28px; align-content: start; }
+.stub { background: var(--paper-2); border-radius: 0 10px 10px 0; transition: background-color 700ms ease; }
+.field-row { display: flex; flex-wrap: wrap; gap: 24px 48px; }
+.field-row div { display: grid; gap: 2px; }
+.field-row span { font-size: var(--s-small); color: var(--muted); }
+.field-row strong { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; line-height: 1.2; }
+
+@media (max-width: 760px) {
+  .ticket { grid-template-columns: 1fr; }
+  .perf { border-left: 0; border-top: 6px dotted var(--field); margin: 0 22px; height: 0; }
+  .perf::before, .perf::after { top: -20px; bottom: auto; }
+  .perf::before { left: -46px; } .perf::after { left: auto; right: -46px; }
+  .stub { border-radius: 0 0 10px 10px; }
+}
+
+/* ------------------------------------------------ 입장권 (첫 화면) */
+.hero-title { font-size: var(--s-display); line-height: 0.95; letter-spacing: -0.035em; }
+.hero-title span { display: block; }
+.lead { font-size: var(--s-lead); line-height: 1.45; max-width: 30ch; font-family: var(--display); }
+.plates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.plates figure { margin: 0; display: grid; gap: 8px; }
+.plates img { aspect-ratio: 1; object-fit: cover; width: 100%; }
+.plates figcaption { font-size: var(--s-small); color: var(--muted); }
+
+label.field { display: grid; gap: 6px; font-size: var(--s-small); font-weight: 600; color: var(--ink); }
+input[type=text], input[type=number] { font: 400 var(--s-body) var(--text); color: var(--ink); background: var(--paper); border: 1px solid var(--muted);
+  border-radius: 0; padding: 12px 14px; width: 100%; min-width: 0; caret-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: var(--s-body); line-height: 1.5; }
+.check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.notice { font-size: var(--s-body); line-height: 1.6; color: var(--ink); }
+.error { color: #b3261e; font-weight: 600; font-size: var(--s-small); }
 .error:empty { display: none; }
 
-label.field { display: grid; gap: 4px; font-size: .88rem; font-weight: 600; }
-input[type=text], select { font: inherit; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
-  border-radius: 6px; padding: 8px 10px; min-width: 0; width: 100%; }
-input:focus-visible, select:focus-visible, button:focus-visible, .chip:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.check { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; }
-.check input { margin-top: 4px; }
+.btn { display: inline-block; text-decoration: none; font: 600 var(--s-body) var(--text); border: 0; border-radius: 0; padding: 16px 26px; cursor: pointer; background: var(--accent);
+  color: var(--accent-ink); transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease, color var(--t-hover) ease; text-align: center; }
+.btn:active { transform: scale(0.97); }
+.btn.ghost { background: color-mix(in srgb, currentColor 13%, transparent); color: inherit; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) { .btn:not(:disabled):hover { background: var(--ink); color: var(--paper); } .btn.ghost:hover { background: var(--ink); color: var(--paper); } }
 
-button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button:disabled { opacity: .5; cursor: not-allowed; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.phone-only { display: none; }
+@media (max-width: 760px) { .phone-only { display: block; } }
 
-fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; min-width: 0; }
-legend { font-family: var(--display); font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; padding: 0; }
-.legend-note { font-size: .82rem; color: var(--muted); }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { position: relative; display: inline-flex; align-items: center; font-size: .85rem; padding: 4px 12px; border-radius: 999px;
-  border: 1px solid var(--line); cursor: pointer; user-select: none; background: var(--bg); }
-.chip input { position: absolute; opacity: 0; pointer-events: none; }
-.chip:has(input:checked) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.radios { display: flex; gap: 8px; flex-wrap: wrap; }
+/* ------------------------------------------------ 48시간은 이렇게 (입장 화면의 일정표 슬립) */
+.how { max-width: 1240px; margin: 140px auto 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(24px, 5vw, 72px); align-items: start; }
+.how h2 { font-size: var(--s-head); }
+.how > div:first-child { display: grid; gap: 20px; max-width: 34ch; }
+.how-slip { background: var(--paper); color: var(--ink); padding: 34px clamp(22px, 3.4vw, 40px) 60px; display: grid; gap: 0; }
+.how-slip h3 { font-family: var(--text); font-size: var(--s-body); font-weight: 600; letter-spacing: 0; margin-top: 22px; }
+.how-slip h3:first-child { margin-top: 0; }
+.row { display: grid; grid-template-columns: auto minmax(20px, 1fr) auto; gap: 12px; align-items: baseline; padding: 10px 0; font-variant-numeric: tabular-nums; }
+.row i { border-bottom: 4px dotted var(--muted); transform: translateY(-6px); }
+.row span:last-child { color: var(--muted); }
+.row.total { background: var(--ink); color: var(--paper); padding: 12px 14px; margin-top: 18px; font-weight: 600; }
+.row.total i { border-color: var(--paper); }
+.row.total span:last-child { color: var(--paper); }
+.band { max-width: 1240px; margin: 120px auto 0; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
+.band figure { margin: 0; display: grid; gap: 8px; }
+.band img { width: 100%; height: clamp(200px, 22vw, 320px); object-fit: cover; }
+.band figcaption { font-size: var(--s-small); color: var(--on-field-muted); }
+@media (max-width: 860px) { .how { grid-template-columns: 1fr; } .band { grid-template-columns: 1fr 1fr; } .band figure:first-child { grid-column: 1 / -1; } }
 
-.steps { display: grid; gap: 16px; }
-.step { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 12px; min-width: 0; }
-.step-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.step-no { font-family: var(--mono); font-size: .78rem; color: var(--accent-ink); background: var(--accent); border-radius: 4px; padding: 1px 7px; }
-.tbl { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: .88rem; min-width: 520px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: .76rem; color: var(--muted); font-weight: 600; }
-tr.first td { background: var(--soft); font-weight: 600; }
-td.r { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
-.bar { display: grid; grid-template-columns: 6.5em 1fr 4.2em; gap: 10px; align-items: center; font-size: .88rem; }
-.track { height: 10px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; }
-.fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
-.val { text-align: right; font-family: var(--mono); font-size: .82rem; }
-.match-card { display: grid; gap: 10px; border-left: 3px solid var(--accent); padding-left: 14px; }
-.intro { font-size: .93rem; }
-.reason { font-weight: 600; }
-details { border-top: 1px solid var(--line); padding-top: 10px; }
-summary { cursor: pointer; font-weight: 600; }
-details > div { margin-top: 10px; display: grid; gap: 10px; }
-footer { font-size: .82rem; color: var(--muted); display: grid; gap: 4px; }
-footer a { color: var(--accent); }
+/* ------------------------------------------------ 출발 준비 */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.opt { position: relative; display: block; cursor: pointer; }
+.opt input { position: absolute; opacity: 0; pointer-events: none; }
+.opt span { display: block; padding: 22px 20px; background: var(--paper-2); font-family: var(--display); font-size: var(--s-lead); font-weight: 700;
+  line-height: 1.25; transition: background-color var(--t-hover) ease, color var(--t-hover) ease, transform var(--t-press) var(--ease-out); }
+.opt:active span { transform: scale(0.98); }
+.opt input:checked + span { background: var(--ink); color: var(--paper); }
+.opt input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 3px; }
+.stepper { display: grid; grid-template-columns: 64px minmax(0, 140px) 64px; align-items: stretch; }
+.stepper button { font: 600 1.5rem var(--text); background: var(--ink); color: var(--paper); border: 0; cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
+.stepper button:active { transform: scale(0.94); }
+.stepper input { text-align: center; font-family: var(--display); font-size: var(--s-lead); font-weight: 700; border-left: 0; border-right: 0; -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-@media (max-width: 640px) {
-  .grid3, .grid4 { grid-template-columns: 1fr 1fr; }
+/* ------------------------------------------------ 카드 (양자택일) */
+.deck { max-width: 920px; margin: 0 auto; display: grid; gap: 22px; }
+.deck-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--on-field); }
+.dots { display: flex; gap: 6px; flex-wrap: wrap; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--on-field); opacity: 0.25; transition: opacity var(--t-ui) ease, transform var(--t-ui) var(--ease-out); }
+.dots i.done { opacity: 1; }
+.dots i.now { opacity: 1; background: var(--accent); transform: scale(1.35); }
+.lean { font-size: var(--s-small); color: var(--on-field-muted); }
+.lean b { color: var(--on-field); font-weight: 600; }
+.card { background: var(--paper); color: var(--ink); border-radius: 10px; display: grid; }
+.card-scene { padding: clamp(24px, 4vw, 44px) clamp(24px, 4vw, 44px) 8px; display: grid; gap: 6px; }
+.card-scene p { font-size: var(--s-small); color: var(--muted); }
+.card-scene h2 { font-size: var(--s-head); }
+.choices { display: grid; padding: 20px clamp(16px, 3vw, 28px) clamp(16px, 3vw, 28px); gap: 0; }
+.choice { font: 700 var(--s-lead)/1.3 var(--display); color: var(--ink); background: var(--paper-2); border: 0; border-radius: 0; text-align: left;
+  padding: clamp(22px, 3.4vw, 36px) clamp(20px, 3vw, 32px); cursor: pointer; min-height: 112px; display: flex; align-items: center;
+  transition: background-color var(--t-hover) ease, color var(--t-hover) ease, transform var(--t-press) var(--ease-out); }
+.choice:active { transform: scale(0.985); }
+.choice.picked { background: var(--accent); color: var(--accent-ink); }
+@media (hover: hover) and (pointer: fine) { .choice:hover { background: var(--ink); color: var(--paper); } }
+.or { position: relative; height: 34px; display: grid; place-items: center; }
+.or::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 6px dotted var(--paper-2); transform: translateY(-50%); }
+.or span { position: relative; background: var(--paper); padding: 0 14px; font-size: var(--s-small); color: var(--muted); }
+.deck-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--on-field); font-size: var(--s-small); }
+
+/* ------------------------------------------------ 목적지 발권 */
+.reveal { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); align-items: start; }
+.city-photo { position: sticky; top: 24px; margin: 0; }
+.city-photo img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
+.city-photo figcaption { margin-top: 8px; font-size: var(--s-small); color: var(--on-field-muted); }
+.dest { display: grid; gap: 40px; min-width: 0; }
+.dest .ticket { width: 100%; }
+.dest-name { font-size: var(--s-display); line-height: 0.95; letter-spacing: -0.035em; }
+.dest .lead { max-width: 24ch; }
+.temp { display: grid; gap: 10px; }
+.temp-track { position: relative; height: 14px; background: var(--paper-2); overflow: hidden; }
+.temp-fill { position: absolute; inset: 0; background: var(--accent); transform-origin: left center; transform: scaleX(0);
+  transition: transform 1200ms var(--ease-in-out); }
+.temp-scale { display: flex; justify-content: space-between; font-size: var(--s-small); color: var(--muted); }
+
+.passengers { display: grid; gap: 16px; }
+.passengers h2 { font-size: var(--s-head); color: var(--on-field); }
+.passengers > p { color: var(--on-field); max-width: 46ch; }
+.pass { background: var(--paper); color: var(--ink); border-radius: 10px; display: grid; grid-template-columns: minmax(0, 1fr) 0 auto; }
+.pass .part { gap: 14px; padding: clamp(22px, 3vw, 34px); }
+.pass .perf { margin: 18px 0; }
+.pass .perf::before { top: -36px; } .pass .perf::after { bottom: -36px; }
+.pass h3 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem); }
+.pass .who { font-size: var(--s-small); color: var(--muted); }
+.pass .intro { max-width: 52ch; }
+.pass .why { font-weight: 600; }
+.pass .nums { display: flex; gap: 22px; flex-wrap: wrap; font-size: var(--s-small); color: var(--muted); }
+.pass .nums b { color: var(--ink); font-size: var(--s-body); }
+.pass .go { display: grid; align-content: center; padding: clamp(18px, 3vw, 30px); background: var(--paper-2); border-radius: 0 10px 10px 0; }
+.pass.best { background: var(--ink); color: var(--paper); }
+.pass.best .who, .pass.best .nums { color: color-mix(in srgb, var(--paper) 80%, var(--ink)); }
+.pass.best .nums b { color: var(--paper); }
+.pass.best .go { background: color-mix(in srgb, var(--paper) 14%, var(--ink)); }
+@media (max-width: 760px) {
+  .reveal { grid-template-columns: 1fr; }
+  .city-photo { position: static; }
+  .city-photo img { aspect-ratio: 1; }
+  .pass { grid-template-columns: 1fr; }
+  .pass .perf { border-left: 0; border-top: 6px dotted var(--field); margin: 0 18px; }
+  .pass .perf::before { top: -20px; left: -40px; } .pass .perf::after { top: -20px; bottom: auto; left: auto; right: -40px; }
+  .pass .go { border-radius: 0 0 10px 10px; }
 }
-@media (max-width: 420px) { .row2, .grid3 { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------ 48시간 일정표 */
+.trip { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(24px, 5vw, 72px); align-items: start; }
+.trip-side { display: grid; gap: 22px; color: var(--on-field); }
+.trip-side h2 { font-size: var(--s-head); }
+.trip-side img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.trip-side figure { margin: 0; }
+.trip-side figcaption { margin-top: 8px; font-size: var(--s-small); color: var(--on-field-muted); }
+.slip { background: var(--paper); color: var(--ink); padding: 34px clamp(22px, 3.4vw, 40px) 64px; display: grid; gap: 22px; }
+.meters { display: grid; gap: 14px; }
+.meter { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; gap: 12px; align-items: center; font-size: var(--s-small); }
+.meter .bar { position: relative; height: 12px; background: var(--paper-2); overflow: hidden; }
+.meter .bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transform: scaleX(0); transition: transform 700ms var(--ease-in-out); }
+.meter .bar i.them { background: var(--accent); }
+.meter .bar s { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--paper); text-decoration: none; }
+.meter b { text-align: right; font-size: var(--s-body); font-variant-numeric: tabular-nums; }
+.itinerary { display: grid; gap: 0; }
+.leg { display: grid; gap: 4px; padding: 16px 0; opacity: 0.28; transition: opacity 500ms ease; }
+.leg.on { opacity: 1; }
+.leg-top { display: grid; grid-template-columns: auto minmax(20px, 1fr) auto; gap: 12px; align-items: baseline; }
+.leg-top strong { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; line-height: 1.25; }
+.leg-top .dotsline { border-bottom: 4px dotted var(--muted); transform: translateY(-6px); }
+.leg-top span { font-size: var(--s-small); color: var(--muted); white-space: nowrap; }
+.leg p { font-size: var(--s-small); color: var(--muted); }
+.leg .delta { font-size: var(--s-body); color: var(--ink); font-variant-numeric: tabular-nums; }
+.verdict { background: var(--ink); color: var(--paper); padding: 16px 20px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-weight: 600; opacity: 0; transform: translateY(10px); transition: opacity 500ms ease, transform 600ms var(--ease-out); }
+.verdict.on { opacity: 1; transform: none; }
+.verdict-note { font-size: var(--s-small); color: var(--muted); }
+@media (max-width: 860px) { .trip { grid-template-columns: 1fr; } }
+
+/* ------------------------------------------------ 로직 공개 (타임라인 재생) */
+.logic { max-width: 1240px; margin: 0 auto; display: grid; gap: 28px; }
+.logic-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; color: var(--on-field); }
+.logic-head h2 { font-size: var(--s-head); }
+.logic-head p { max-width: 46ch; }
+.steps { display: grid; gap: 14px; }
+.lstep { background: var(--paper); color: var(--ink); border-radius: 10px; padding: clamp(22px, 3.4vw, 40px); display: grid; gap: 14px;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: clamp(20px, 4vw, 56px); }
+.lstep h3 { font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2rem); }
+.lstep .say { display: grid; gap: 10px; align-content: start; }
+.lstep .say p { color: var(--muted); font-size: var(--s-small); }
+.lstep .body { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.js .lstep { opacity: 0; transform: translateY(22px); transition: opacity 500ms ease, transform 700ms var(--ease-out); }
+.js .lstep.on { opacity: 1; transform: none; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--s-small); min-width: 460px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--paper-2); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+tr.mark td { background: var(--paper-2); font-weight: 600; }
+.sum { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; }
+.bars { display: grid; gap: 8px; }
+.sbar { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) 4em; gap: 10px; align-items: center; font-size: var(--s-small); }
+.sbar .bar { position: relative; height: 10px; background: var(--paper-2); overflow: hidden; }
+.sbar .bar i { position: absolute; inset: 0; background: var(--accent); transform-origin: left center; transform: scaleX(0); transition: transform 900ms var(--ease-out); }
+.sbar b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sources { font-size: var(--s-small); color: var(--muted); }
+@media (max-width: 760px) { .lstep { grid-template-columns: 1fr; } table { min-width: 0; } th, td { padding: 8px 6px; } }
+
+/* ------------------------------------------------ 바닥 (커튼처럼 드러나는 탑승권 뒷면) */
+footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background: var(--ink); color: var(--paper);
+  display: grid; grid-template-rows: auto 1fr auto; padding: 40px var(--m) 20px; gap: 32px; transition: background-color 700ms ease; }
+.cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; font-size: var(--s-body); }
+.cols h3 { font-family: var(--text); font-size: var(--s-small); font-weight: 600; letter-spacing: 0; margin-bottom: 8px; line-height: 1.4; }
+.cols ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; color: color-mix(in srgb, var(--paper) 80%, var(--ink)); }
+.mark-svg { width: 100%; height: auto; display: block; fill: var(--paper); }
+.legal { font-size: var(--s-small); color: color-mix(in srgb, var(--paper) 72%, var(--ink)); }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr 1fr; } }
+
+/* ------------------------------------------------ 움직임 */
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-rise] { opacity: 0; transform: translateY(22px); animation: rise var(--t-reveal) var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 80ms); }
+  .js [data-open] { clip-path: inset(0 0 100% 0); animation: open 1100ms var(--ease-in-out) forwards; animation-delay: calc(var(--i, 0) * 80ms + 200ms); }
+  .js .drift { animation: drift 24s ease-in-out infinite alternate; }
+}
+@keyframes rise { to { opacity: 1; transform: none; } }
+@keyframes open { to { clip-path: inset(0 0 0 0); } }
+@keyframes drift { from { transform: scale(1); } to { transform: scale(1.06); } }
+.photo-frame { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  .js .lstep, .leg { opacity: 1; transform: none; }
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-
+<main>
   <header class="top">
-    <p class="eyebrow">수업 실습 · 매칭 로직 체험</p>
-    <h1>48시간 소개팅</h1>
-    <p class="muted">원하는 취향만 고르면, 가상 인물 70명 중에서 조건에 맞는 상대를 찾고 그 사람을 고른 이유와 계산 과정을 그대로 보여 드립니다.</p>
-    <div class="badges"><span class="badge" id="mode-badge">서버 확인 중…</span><span class="badge num" id="count-badge">정원 –/30</span><span class="badge" id="me-badge" hidden></span></div>
+    <a class="wordmark" href="./app.html">48시간 소개팅</a>
+    <div class="status">
+      <span id="mode-badge">서버 확인 중</span>
+      <span id="count-badge" class="num">정원 –/30</span>
+      <span id="me-badge" hidden></span>
+      <button type="button" class="linkish" id="logout-btn" hidden>나가기</button>
+    </div>
   </header>
 
-  <!-- 가입 -->
-  <section class="panel" id="gate" aria-labelledby="gate-title">
-    <h2 id="gate-title">입장하기</h2>
-    <p class="notice">학번과 이름은 <b>정원(30명) 확인용</b>으로만 저장하며, 이 페이지나 GitHub 어디에도 공개되지 않습니다. 다른 가입자의 정보는 누구도 볼 수 없고, 과제가 끝나면 삭제합니다. 이미 가입했다면 같은 학번·이름으로 다시 들어오면 됩니다.</p>
-    <form id="gate-form" novalidate>
-      <div class="row2">
-        <label class="field" for="sid">학번 <input type="text" id="sid" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="숫자 6~12자리"></label>
-        <label class="field" for="sname">이름 <input type="text" id="sname" autocomplete="off" maxlength="20" placeholder="2~20자"></label>
+  <!-- 입장권 -->
+  <section class="screen" id="gate" aria-labelledby="gate-title">
+    <div class="ticket">
+      <div class="part">
+        <h1 class="hero-title" id="gate-title"><span data-rise style="--i:0">48시간</span><span data-rise style="--i:1">소개팅</span></h1>
+        <p class="lead" data-rise style="--i:2">여행하며 상대를 알아가는 소개팅. 여행 취향 카드 16장을 고르면, 나와 온도가 같은 도시와 그 도시의 사람을 찾아 48시간 여행을 보내 드립니다.</p>
+        <div class="field-row" data-rise style="--i:3">
+          <div><span>출발</span><strong>카드 16장</strong></div>
+          <div><span>도착</span><strong>하와이 · 홍콩 · 삿포로</strong></div>
+          <div><span>체류</span><strong>48시간</strong></div>
+        </div>
+        <a class="btn phone-only" href="#sid" data-rise style="--i:4">탑승 수속하기</a>
+        <div class="plates">
+          <figure><div class="photo-frame" data-open style="--i:4"><img src="assets/hawaii-palms.jpg" width="1600" height="1144" alt="하와이 해변의 야자수 너머로 지는 주황빛 석양"></div><figcaption>하와이, 뜨거운 사람</figcaption></figure>
+          <figure><div class="photo-frame" data-open style="--i:5"><img src="assets/hk-neon.jpg" width="1536" height="2048" alt="홍콩 삼수이포 밤거리의 붉고 푸른 네온 간판"></div><figcaption>홍콩, 따뜻하고 시린 사람</figcaption></figure>
+          <figure><div class="photo-frame" data-open style="--i:6"><img src="assets/sapporo-snow.jpg" width="1600" height="2400" alt="눈이 쌓인 삿포로 밤거리와 따뜻한 가로등 불빛"></div><figcaption>삿포로, 차갑고 따뜻한 사람</figcaption></figure>
+        </div>
       </div>
-      <label class="field" for="scode" id="scode-wrap" style="margin-top:12px" hidden>입장 코드 <input type="text" id="scode" autocomplete="off" maxlength="40" placeholder="수업에서 안내한 코드"></label>
-      <p style="margin-top:12px"><label class="check" for="consent"><input type="checkbox" id="consent"> 학번·이름을 정원 확인용으로 저장하는 데 동의합니다.</label></p>
-      <p class="error" id="gate-error" role="alert"></p>
-      <div class="actions" style="margin-top:12px"><button type="submit" class="primary" id="gate-btn">입장</button></div>
-    </form>
-  </section>
-
-  <!-- 취향 고르기 -->
-  <section class="panel" id="prefs" hidden aria-labelledby="prefs-title">
-    <div class="actions" style="justify-content:space-between">
-      <h2 id="prefs-title">원하는 상대 고르기</h2>
-      <div class="actions"><button type="button" id="random-btn">무작위로 채우기</button><button type="button" id="reset-btn">모두 상관없음</button></div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="part stub" data-rise style="--i:4">
+        <h2 style="font-size:var(--s-lead)">탑승 수속</h2>
+        <p class="notice">학번과 이름은 <b>정원(30명) 확인용</b>으로만 저장하며, 이 페이지나 GitHub 어디에도 공개되지 않습니다. 다른 가입자의 정보는 누구도 볼 수 없고, 과제가 끝나면 삭제합니다. 이미 가입했다면 같은 학번·이름으로 다시 들어오면 됩니다.</p>
+        <form id="gate-form" novalidate style="display:grid;gap:16px">
+          <label class="field" for="sid">학번 <input type="text" id="sid" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="숫자 6~12자리"></label>
+          <label class="field" for="sname">이름 <input type="text" id="sname" autocomplete="off" maxlength="20" placeholder="2~20자"></label>
+          <label class="field" for="scode" id="scode-wrap" hidden>입장 코드 <input type="text" id="scode" autocomplete="off" maxlength="40" placeholder="수업에서 안내한 코드"></label>
+          <label class="check" for="consent"><input type="checkbox" id="consent"> 학번·이름을 정원 확인용으로 저장하는 데 동의합니다.</label>
+          <p class="error" id="gate-error" role="alert"></p>
+          <button type="submit" class="btn" id="gate-btn">탑승권 받기</button>
+        </form>
+      </div>
     </div>
-    <p class="muted" style="font-size:.88rem">내 특징은 입력하지 않습니다. 모든 항목은 비워 두면 '상관없음'입니다.</p>
-    <form id="pref-form" novalidate style="display:grid;gap:26px"></form>
-    <p class="error" id="pref-error" role="alert"></p>
-    <div class="actions"><button type="button" class="primary" id="match-btn">48시간 상대 찾기</button><button type="button" id="logout-btn">나가기</button></div>
+
+    <div class="how">
+      <div>
+        <h2 data-rise style="--i:0">48시간의 일정표</h2>
+        <p data-rise style="--i:1">조건표를 채우는 대신, 여행에서 실제로 부딪히는 장면을 고릅니다. 고른 답은 점수표가 되고, 그 성향은 여행 이벤트에서 다시 시험받습니다. 마지막에는 모든 계산을 그대로 보여 드립니다.</p>
+      </div>
+      <div class="how-slip" id="how-slip" data-rise style="--i:2">
+        <h3>출발 전</h3>
+        <p class="row"><span>여행 장면 카드 16장 고르기</span><i aria-hidden="true"></i><span>한 장에 3초</span></p>
+        <p class="row"><span>여행 온도로 목적지 발권</span><i aria-hidden="true"></i><span>0~12점</span></p>
+        <h3>공항</h3>
+        <p class="row"><span>같은 도시 사람 중 성향이 가까운 3명</span><i aria-hidden="true"></i><span>성향 벡터</span></p>
+        <p class="row"><span>한 명을 골라 탑승</span><i aria-hidden="true"></i><span>직접 선택</span></p>
+        <h3>48시간</h3>
+        <p class="row"><span>12시간마다 이벤트 하나, 모두 넷</span><i aria-hidden="true"></i><span>호감도 변화</span></p>
+        <p class="row"><span>도착 후 계산 과정 공개</span><i aria-hidden="true"></i><span>처음부터 재생</span></p>
+        <p class="row total"><span>손에 남는 것: 목적지, 동행, 그리고 그 이유</span><i aria-hidden="true"></i><span>48시간</span></p>
+      </div>
+    </div>
+
+    <div class="band">
+      <figure><div class="photo-frame" data-open><img class="drift" src="assets/hawaii-waikiki.jpg" width="1600" height="1066" alt="구름 낀 와이키키 바다 위로 지는 해와 방파제 위의 사람들" loading="lazy"></div><figcaption>와이키키의 저녁</figcaption></figure>
+      <figure><div class="photo-frame" data-open style="--i:1"><img class="drift" src="assets/hk-tram.jpg" width="1600" height="1066" alt="불을 밝힌 채 밤거리를 달리는 홍콩 2층 트램" loading="lazy"></div><figcaption>홍콩 트램의 밤</figcaption></figure>
+      <figure><div class="photo-frame" data-open style="--i:2"><img class="drift" src="assets/sapporo-tower.jpg" width="1600" height="1200" alt="눈 덮인 나뭇가지 사이로 주황빛을 밝힌 삿포로 TV 타워" loading="lazy"></div><figcaption>삿포로 TV 타워의 겨울</figcaption></figure>
+    </div>
   </section>
 
-  <!-- 결과 -->
-  <section id="result" hidden aria-live="polite">
-    <div class="steps" id="steps"></div>
-    <div class="actions" style="margin-top:16px"><button type="button" id="again-btn">취향 다시 고르기</button></div>
+  <!-- 출발 준비 -->
+  <section class="screen" id="prep" hidden aria-labelledby="prep-title">
+    <div class="ticket">
+      <div class="part">
+        <h2 id="prep-title" style="font-size:var(--s-head)">누구와 떠날까요</h2>
+        <div class="pair" role="radiogroup" aria-label="함께 떠날 상대">
+          <label class="opt"><input type="radio" name="gender" value="여" checked><span>여성과 떠나고 싶어요</span></label>
+          <label class="opt"><input type="radio" name="gender" value="남"><span>남성과 떠나고 싶어요</span></label>
+        </div>
+        <div style="display:grid;gap:10px">
+          <label for="age" style="font-size:var(--s-small);font-weight:600">내 나이</label>
+          <div class="stepper"><button type="button" id="age-dn" aria-label="한 살 내리기">−</button><input type="number" id="age" min="20" max="45" value="27" inputmode="numeric"><button type="button" id="age-up" aria-label="한 살 올리기">+</button></div>
+          <p class="notice">또래를 원하는지는 카드에서 따로 묻습니다. 나이는 그 기준점으로만 씁니다.</p>
+        </div>
+      </div>
+      <div class="perf" aria-hidden="true"></div>
+      <div class="part stub">
+        <p style="font-size:var(--s-body)">정답은 없습니다. 두 장면 중 더 나다운 쪽을 고르세요. 한 장에 3초면 충분합니다.</p>
+        <p class="error" id="prep-error" role="alert"></p>
+        <button type="button" class="btn" id="prep-btn">카드 고르기</button>
+      </div>
+    </div>
   </section>
 
-  <footer>
-    <p>모든 프로필은 수업 실습용 가상 인물입니다. 점수는 정해 둔 규칙으로 매긴 궁합 점수이며, 실제로 만날 확률이 아닙니다.</p>
-    <p>코드: <a href="https://github.com/yufe9/dating-match">github.com/yufe9/dating-match</a> · 한 쌍 분석 시각화: <a href="./">M06 × W22</a></p>
-  </footer>
-</div>
+  <!-- 카드 16장 -->
+  <section class="screen" id="cards" hidden aria-labelledby="card-title">
+    <div class="deck">
+      <div class="deck-head">
+        <div class="dots" id="dots" aria-hidden="true"></div>
+        <p class="lean" id="lean" aria-live="polite"></p>
+      </div>
+      <article class="card" id="card">
+        <div class="card-scene">
+          <p id="card-count" class="num"></p>
+          <h2 id="card-title"></h2>
+        </div>
+        <div class="choices">
+          <button type="button" class="choice" id="choice-a"></button>
+          <div class="or" aria-hidden="true"><span>또는</span></div>
+          <button type="button" class="choice" id="choice-b"></button>
+        </div>
+      </article>
+      <div class="deck-foot">
+        <button type="button" class="linkish" id="back-btn">이전 카드</button>
+        <span>고른 답은 마지막에 모두 공개됩니다</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 목적지 + 후보 -->
+  <section class="screen" id="result" hidden>
+    <div class="reveal">
+      <figure class="city-photo">
+        <div class="photo-frame"><img id="city-img" class="drift" src="data:," width="1600" height="2000" alt=""></div>
+        <figcaption id="city-cap"></figcaption>
+      </figure>
+      <div class="dest">
+        <div class="ticket" style="grid-template-columns:1fr">
+          <div class="part">
+            <p id="dest-from" class="muted" style="font-size:var(--s-small)"></p>
+            <h2 class="dest-name" id="dest-name" tabindex="-1"></h2>
+            <p class="lead" id="dest-mood"></p>
+            <div class="temp">
+              <div class="temp-track" aria-hidden="true"><i class="temp-fill" id="temp-fill"></i></div>
+              <div class="temp-scale"><span>0 차가움</span><span id="temp-val" class="num"></span><span>12 뜨거움</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="passengers">
+          <h2>함께 탈 사람을 고르세요</h2>
+          <p id="pass-note"></p>
+          <div id="pass-list" style="display:grid;gap:14px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 48시간 일정표 -->
+  <section class="screen" id="trip" hidden style="padding-top:140px">
+    <div class="trip">
+      <div class="trip-side">
+        <h2 id="trip-title" tabindex="-1"></h2>
+        <p id="trip-note"></p>
+        <figure><div class="photo-frame"><img id="trip-img" src="data:," width="1600" height="1066" alt="" loading="lazy"></div><figcaption id="trip-cap"></figcaption></figure>
+      </div>
+      <div class="slip" id="slip">
+        <div class="meters">
+          <div class="meter"><span>나 → 상대</span><span class="bar"><i id="m-me"></i><s id="m-line-me"></s></span><b id="v-me">0</b></div>
+          <div class="meter"><span id="them-label">상대 → 나</span><span class="bar"><i class="them" id="m-them"></i><s id="m-line-them"></s></span><b id="v-them">0</b></div>
+        </div>
+        <div class="itinerary" id="legs"></div>
+        <div class="verdict" id="verdict" aria-live="polite"><span id="verdict-a"></span><span id="verdict-b" class="num"></span></div>
+        <p class="verdict-note" id="verdict-note"></p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" class="btn" id="logic-btn">로직 공개</button>
+          <button type="button" class="btn ghost" id="replay-trip">여행 다시 재생</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 로직 공개 -->
+  <section class="screen" id="logic" hidden style="padding-top:140px">
+    <div class="logic">
+      <div class="logic-head">
+        <div style="display:grid;gap:12px">
+          <h2 id="logic-title" tabindex="-1">이렇게 계산했습니다</h2>
+          <p>카드에서 고른 답이 어떻게 도시와 사람, 여행 결과가 됐는지 처음부터 다시 재생합니다.</p>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" class="btn ghost" id="logic-all">한 번에 보기</button>
+          <button type="button" class="btn ghost" id="logic-replay">다시 재생</button>
+        </div>
+      </div>
+      <div class="steps" id="steps"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button type="button" class="btn" id="again-btn">카드 다시 고르기</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="cols">
+    <div><h3>48시간 소개팅</h3><ul><li>모든 프로필은 수업 실습용 가상 인물입니다.</li><li>점수는 정해 둔 규칙으로 매긴 궁합 점수이며, 실제로 만날 확률이 아닙니다.</li></ul></div>
+    <div><h3>더 보기</h3><ul><li><a href="./">한 쌍 분석 시각화 M06 × W22</a></li><li><a href="https://github.com/yufe9/dating-match">코드 github.com/yufe9/dating-match</a></li><li><a href="https://github.com/yufe9/dating-match#readme">콘솔 버전 match.py</a></li></ul></div>
+    <div><h3>사진 출처</h3><ul>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=60543911">Hawaii at Sunset with Palm Trees</a>, Nan Palmero, CC BY 2.0</li>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=129437893">Waikiki Sunset</a>, Warren McKenzie, CC BY-SA 4.0</li>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=29145500">HK Shum Shui Po neon signs</a>, ZHyamenadnou, CC BY-SA 3.0</li>
+    </ul></div>
+    <div><h3>사진 출처 (이어서)</h3><ul>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=27820303">Hong Kong tram 28</a>, Mike Peel, CC BY-SA 4.0</li>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=157111735">Snow on the streets of Sapporo at night</a>, Fumikas Sagisavas, CC0</li>
+      <li><a href="https://commons.wikimedia.org/w/index.php?curid=54141916">Winter Night, Sapporo TV Tower</a>, Chiranthi W., CC BY-SA 4.0</li>
+    </ul></div>
+  </div>
+  <div></div>
+  <div style="display:grid;gap:14px">
+    <svg class="mark-svg" viewBox="0 0 1000 150" role="img" aria-label="48시간 소개팅"><text x="0" y="128" textLength="1000" lengthAdjust="spacingAndGlyphs" style="font-family:var(--display);font-weight:700;font-size:150px">48시간 소개팅</text></svg>
+    <p class="legal">사진은 Wikimedia Commons의 공개 라이선스 사진을 크기만 줄여 썼습니다.</p>
+  </div>
+</footer>
 
 <script src="config.js"></script>
 <script src="app-logic.js"></script>
 <script>
 (function () {
   "use strict";
-  var M = window.Match48, ANY = M.ANY;
+  var M = window.Match48;
   var CFG = window.DM_CONFIG || { url: "", key: "" };
-  var MEMBER_KEY = "48h.member.v1", PREF_KEY = "48h.prefs.v1", DEMO_KEY = "48h.demo.members.v1";
-  var LIMITS = { interests: 5, looks: 3, important: 2 };
+  var MEMBER_KEY = "48h.member.v1", PREP_KEY = "48h.prep.v1", DEMO_KEY = "48h.demo.members.v1";
+  var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var data = null;
+  var st = { answers: [], i: 0, gender: "여", age: 27, me: null, pref: null, cand: null, row: null, trip: null };
+  var PHOTOS = {  // [파일, 너비, 높이, 대체 글, 출처]
+    hawaii: { reveal: ["assets/hawaii-palms.jpg", 1600, 1144, "하와이 해변의 야자수 너머로 지는 주황빛 석양", "하와이 · Nan Palmero, CC BY 2.0"],
+      trip: ["assets/hawaii-waikiki.jpg", 1600, 1066, "구름 낀 와이키키 바다 위로 지는 해와 방파제 위의 사람들", "와이키키 · Warren McKenzie, CC BY-SA 4.0"] },
+    hongkong: { reveal: ["assets/hk-neon.jpg", 1536, 2048, "홍콩 삼수이포 밤거리의 붉고 푸른 네온 간판", "홍콩 삼수이포 · ZHyamenadnou, CC BY-SA 3.0"],
+      trip: ["assets/hk-tram.jpg", 1600, 1066, "불을 밝힌 채 밤거리를 달리는 홍콩 2층 트램", "홍콩 트램 · Mike Peel, CC BY-SA 4.0"] },
+    sapporo: { reveal: ["assets/sapporo-snow.jpg", 1600, 2400, "눈이 쌓인 삿포로 밤거리와 따뜻한 가로등 불빛", "삿포로 · Fumikas Sagisavas, CC0"],
+      trip: ["assets/sapporo-tower.jpg", 1600, 1200, "눈 덮인 나뭇가지 사이로 주황빛을 밝힌 삿포로 TV 타워", "삿포로 TV 타워 · Chiranthi W., CC BY-SA 4.0"] }
+  };
 
   // ------------------------------------------------------------ 작은 도우미
   function $(id) { return document.getElementById(id); }
@@ -183,7 +551,7 @@ footer a { color: var(--accent); }
     }
     return e;
   }
-  // 가입 정보는 sessionStorage(브라우저를 닫으면 사라짐 — 실습실 공용 PC 대비), 고른 취향만 localStorage
+  // 가입 정보는 sessionStorage(브라우저를 닫으면 사라짐 — 실습실 공용 PC 대비), 출발 준비 값만 localStorage
   function box(key) { return key === MEMBER_KEY ? window.sessionStorage : window.localStorage; }
   function store(key, val) {
     try {
@@ -192,6 +560,20 @@ footer a { color: var(--accent); }
     } catch (e) { return null; }
   }
   function forget(key) { try { box(key).removeItem(key); } catch (e) { /* 저장소를 못 쓰면 무시 */ } }
+  function fmt(n) { return String(Math.round(n * 10) / 10); }
+  function signed(n) { return (n > 0 ? "+" : n < 0 ? "−" : "±") + fmt(Math.abs(n)); }
+  var timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, REDUCED ? 0 : ms)); }
+  function stopTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function show(id) {  // 결과 쪽 화면은 아래로 쌓입니다: 목적지 → 여행 → 로직
+    var stack = { result: ["result"], trip: ["result", "trip"], logic: ["result", "trip", "logic"] }[id] || [id];
+    ["gate", "prep", "cards", "result", "trip", "logic"].forEach(function (s) { $(s).hidden = stack.indexOf(s) === -1; });
+  }
+  function setCity(id) {
+    if (id) document.documentElement.setAttribute("data-city", id);
+    else document.documentElement.removeAttribute("data-city");
+  }
 
   // ------------------------------------------------------------ 서버 (Supabase) 또는 데모
   var live = !!(CFG.url && CFG.key);
@@ -247,12 +629,16 @@ footer a { color: var(--accent); }
       .catch(function () { $("count-badge").textContent = "정원 확인 실패"; });
   }
 
-  // ------------------------------------------------------------ 가입 화면
+  // ------------------------------------------------------------ 입장
   function enter(member) {
-    $("gate").hidden = true;
-    $("prefs").hidden = false;
     $("me-badge").hidden = false;
-    $("me-badge").textContent = member.name + " 님 · " + member.slot + "번째";
+    $("logout-btn").hidden = false;
+    $("me-badge").textContent = member.name + " 님 · " + member.slot + "번째 탑승객";
+    var prep = store(PREP_KEY);
+    if (prep) { st.gender = prep.gender === "남" ? "남" : "여"; st.age = clampAge(prep.age); }
+    document.querySelectorAll("input[name=gender]").forEach(function (x) { x.checked = x.value === st.gender; });
+    $("age").value = st.age;
+    show("prep");
   }
 
   $("gate-form").addEventListener("submit", function (ev) {
@@ -281,274 +667,363 @@ footer a { color: var(--accent); }
     location.reload();
   });
 
-  // ------------------------------------------------------------ 취향 폼 (범주는 데이터에서)
-  function uniq(field, split) {
-    var s = {};
-    data.profiles.forEach(function (p) { (split ? M.list(p[field]) : [p[field]]).forEach(function (v) { s[v] = 1; }); });
-    return Object.keys(s).sort(function (a, b) { return a.localeCompare(b, "ko"); });
+  // ------------------------------------------------------------ 출발 준비
+  function clampAge(v) { return Math.min(45, Math.max(20, Math.round(Number(v) || 27))); }
+  $("age-dn").addEventListener("click", function () { $("age").value = clampAge(Number($("age").value) - 1); });
+  $("age-up").addEventListener("click", function () { $("age").value = clampAge(Number($("age").value) + 1); });
+  $("prep-btn").addEventListener("click", function () {
+    var a = Number($("age").value);
+    if (!(a >= 20 && a <= 45)) { $("prep-error").textContent = "나이는 20~45세 사이로 입력해 주세요."; $("age").focus(); return; }
+    $("prep-error").textContent = "";
+    st.gender = document.querySelector("input[name=gender]:checked").value;
+    st.age = Math.round(a);
+    store(PREP_KEY, { gender: st.gender, age: st.age });
+    startCards();
+  });
+
+  // ------------------------------------------------------------ 카드
+  var dots = $("dots");
+  M.CARDS.forEach(function () { dots.appendChild(el("i")); });
+
+  function startCards() {
+    stopTimers();
+    st.answers = []; st.i = 0;
+    setCity(null);
+    show("cards");
+    renderCard();
+    window.scrollTo(0, 0);
+    $("choice-a").focus({ preventScroll: true });
   }
-  function select(id, label, options, any) {
-    var s = el("select", { id: id, name: id });
-    s.appendChild(el("option", { value: ANY, text: any || "상관없음" }));
-    options.forEach(function (o) {
-      var v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
-      s.appendChild(el("option", { value: String(v), text: String(t) }));
+  function leanCity() {  // 지금까지 고른 답으로 기운 도시 (온도 카드를 아직 안 골랐으면 없음)
+    var me = M.fromAnswers(st.answers.slice(0, st.i), st.gender, st.age).me;
+    var seen = ["주말스타일", "음주", "운동", "연락빈도", "EI", "JP"].filter(function (k) { return me[k]; }).length;
+    return seen ? M.cityOf(Math.round(M.heat(me) * 6 / seen)) : null;  // 고른 만큼만으로 12점 만점 환산
+  }
+  function renderCard() {
+    var c = M.CARDS[st.i];
+    $("card-count").textContent = M.CARDS.length + "장 중 " + (st.i + 1) + "번째 장면";
+    $("card-title").textContent = c.scene;
+    $("choice-a").textContent = c.a.text;
+    $("choice-b").textContent = c.b.text;
+    $("choice-a").classList.remove("picked");
+    $("choice-b").classList.remove("picked");
+    Array.prototype.forEach.call(dots.children, function (d, k) { d.className = k < st.i ? "done" : k === st.i ? "now" : ""; });
+    $("back-btn").style.visibility = st.i === 0 ? "hidden" : "visible";
+    var lc = leanCity();
+    setCity(lc && lc.id);
+    $("lean").textContent = "";
+    if (lc) $("lean").append("지금 온도는 ", el("b", { text: lc.name }), " 쪽");
+  }
+  var busy = false;
+  function choose(side) {
+    if (busy) return;
+    busy = true;
+    st.answers[st.i] = side;
+    st.answers.length = st.i + 1;
+    $("choice-" + side).classList.add("picked");
+    var card = $("card"), dx = side === "a" ? 28 : -28;
+    var out = REDUCED || !card.animate ? null : card.animate(
+      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(" + -dx + "px)" }],
+      { duration: 200, delay: 140, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" });
+    var next = function () {
+      st.i += 1;
+      busy = false;
+      if (st.i >= M.CARDS.length) { if (out) out.cancel(); finish(); return; }
+      renderCard();
+      if (out) {
+        out.cancel();
+        card.animate([{ opacity: 0, transform: "translateX(" + dx + "px)" }, { opacity: 1, transform: "none" }],
+          { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+      }
+    };
+    if (out) out.onfinish = next; else next();
+  }
+  $("choice-a").addEventListener("click", function () { choose("a"); });
+  $("choice-b").addEventListener("click", function () { choose("b"); });
+  $("back-btn").addEventListener("click", function () { if (st.i > 0 && !busy) { st.i -= 1; renderCard(); } });
+
+  // ------------------------------------------------------------ 목적지 + 후보
+  function finish() {
+    var r = M.fromAnswers(st.answers, st.gender, st.age);
+    st.me = r.me; st.pref = r.pref;
+    st.cand = M.candidates(data, st.me, st.pref);
+    var city = st.cand.city, ph = PHOTOS[city.id];
+    setCity(city.id);
+    var img = $("city-img");
+    img.src = ph.reveal[0]; img.width = ph.reveal[1]; img.height = ph.reveal[2]; img.alt = ph.reveal[3];
+    $("city-cap").textContent = ph.reveal[4];
+    $("dest-from").textContent = "인천 ICN → " + city.name + " " + city.code + " · 48시간";
+    $("dest-name").textContent = city.name;
+    $("dest-mood").textContent = "당신은 " + city.mood + "입니다.";
+    $("temp-val").textContent = "내 온도 " + st.cand.heat;
+    $("temp-fill").style.transform = "scaleX(0)";
+    var who = st.gender === "여" ? "여성" : "남성";
+    $("pass-note").textContent = (st.cand.cities.length > 1
+      ? city.name + "에서 조건에 맞는 사람이 3명이 되지 않아 가까운 도시까지 넓혀 찾았습니다. "
+      : city.name + "에 배정된 " + who + " " + st.cand.pool + "명 가운데, ") +
+      "성향이 가장 가까운 사람부터 보여 드립니다. 한 명을 골라 48시간을 떠나 보세요.";
+    renderPassengers();
+    show("result");
+    window.scrollTo(0, 0);
+    $("dest-name").focus({ preventScroll: true });
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      $("temp-fill").style.transform = "scaleX(" + st.cand.heat / 12 + ")";
+    }); });
+  }
+
+  function renderPassengers() {
+    var list = $("pass-list");
+    list.textContent = "";
+    st.cand.picks.forEach(function (row, k) {
+      var p = row.p, theirs = M.list(p["관심사"]);
+      var shared = st.me.interests.filter(function (x) { return theirs.indexOf(x) !== -1; });
+      var btn = el("button", { type: "button", class: "btn", text: "이 사람과 떠나기" });
+      btn.addEventListener("click", function () { pick(row); });
+      list.appendChild(el("article", { class: "pass" + (k === 0 ? " best" : ""), "data-rise": "", style: "--i:" + (k + 2) },
+        el("div", { class: "part" },
+          el("p", { class: "who", text: (k === 0 ? "궁합 1위 · " : "") + p["나이"] + "세 · " + p["직업군"] + " · " + p["거주_시"] + " " + p["거주_구"] }),
+          el("h3", { text: p["이름"] }),
+          el("p", { class: "intro", text: p["자기소개"] }),
+          el("p", { class: "why", text: shared.length ? "같이 고른 취향: " + shared.join(" · ") : "겹치는 관심사는 없지만, 생활 리듬이 비슷합니다" }),
+          el("p", { class: "nums" },
+            el("span", null, "성향 유사도 ", el("b", { class: "num", text: row.sim.toFixed(2) })),
+            el("span", null, "궁합 점수 ", el("b", { class: "num", text: fmt(row.total) }), " /100"))),
+        el("div", { class: "perf", "aria-hidden": "true" }),
+        el("div", { class: "go" }, btn)));
     });
-    return el("label", { class: "field", for: id }, label, s);
   }
-  function chips(name, options, limit) {
-    var box = el("div", { class: "chips", role: "group" });
-    options.forEach(function (o, i) {
-      var id = name + "-" + i;
-      var inp = el("input", { type: "checkbox", id: id, name: name, value: o });
-      inp.addEventListener("change", function () {
-        var on = box.querySelectorAll("input:checked").length;
-        if (on > limit) { inp.checked = false; $("pref-error").textContent = "최대 " + limit + "개까지 고를 수 있습니다."; }
-        else $("pref-error").textContent = "";
-      });
-      box.appendChild(el("label", { class: "chip", for: id }, inp, o));
+
+  // ------------------------------------------------------------ 48시간 여행 재생
+  var KIND = { "같음": "잘 맞았다", "한칸": "조금 어긋났다", "두칸": "부딪혔다", "운": "운에 맡겼다" };
+  var TEST = { "주말스타일": "쉬는 방식", "음주": "술자리", "운동": "아침 리듬", "연락빈도": "함께하는 시간", "반려동물": "동물",
+    "가치관": "결혼·자녀 계획", "관심사": "관심사", "MBTI J/P": "계획파·즉흥파", "운": "운" };
+  function zigzag(elm) {  // 일정표 아래쪽을 톱니로 자릅니다
+    var n = 26, pts = ["0 0", "100% 0"];
+    for (var i = n; i >= 0; i--) pts.push((100 * i / n) + "% " + (i % 2 ? "calc(100% - 14px)" : "100%"));
+    elm.style.clipPath = "polygon(" + pts.join(", ") + ")";
+  }
+  zigzag($("slip"));
+  zigzag($("how-slip"));
+
+  function pick(row) {
+    st.row = row;
+    st.trip = M.trip(data, st.me, row, st.answers.join(""));
+    var city = st.cand.city, ph = PHOTOS[city.id], p = row.p;
+    $("trip-title").textContent = "48시간, " + city.name;
+    $("trip-note").textContent = p["이름"] + " 님과 떠납니다. 여행은 현실 검증입니다. 잘 맞는 순간은 조금, 부딪히는 순간은 크게 마음을 흔듭니다.";
+    var img = $("trip-img");
+    img.src = ph.trip[0]; img.width = ph.trip[1]; img.height = ph.trip[2]; img.alt = ph.trip[3];
+    $("trip-cap").textContent = ph.trip[4];
+    $("them-label").textContent = p["이름"] + " → 나";
+    show("trip");
+    $("trip").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
+    $("trip-title").focus({ preventScroll: true });
+    playTrip();
+  }
+
+  function setMeters(v) {
+    $("m-me").style.transform = "scaleX(" + v.me / 100 + ")";
+    $("m-them").style.transform = "scaleX(" + v.them / 100 + ")";
+    $("v-me").textContent = fmt(v.me);
+    $("v-them").textContent = fmt(v.them);
+  }
+  function playTrip() {
+    stopTimers();
+    var t = st.trip, p = st.row.p, legs = $("legs");
+    legs.textContent = "";
+    $("verdict").classList.remove("on");
+    $("verdict-note").textContent = "";
+    ["me", "them"].forEach(function (w) { $("m-line-" + w).style.left = M.COUPLE_MIN + "%"; });
+    setMeters({ me: 0, them: 0 });
+    var rows = [{ hour: 0, name: "공항에서 첫 만남", line: "궁합 " + fmt(t.fit.me) + " / " + fmt(t.fit.them) + "에 첫인상 " + signed(t.first.me) + " / " + signed(t.first.them),
+      delta: "나 " + fmt(t.start.me) + " · " + p["이름"] + " " + fmt(t.start.them), now: t.start }];
+    t.log.forEach(function (e) {
+      rows.push({ hour: e.hour, name: e.name, line: e.kind === "운" ? "성향과 상관없이 운에 맡긴 시간" : TEST[e.test] + "에서 " + KIND[e.kind],
+        delta: "나 " + signed(e.delta.me) + " · " + p["이름"] + " " + signed(e.delta.them), now: e.now });
     });
-    return box;
-  }
-  function group(title, note) {
-    var fs = el("fieldset", null, el("legend", { text: title }));
-    if (note) fs.appendChild(el("p", { class: "legend-note", text: note }));
-    return fs;
-  }
-  function range(a, b, st) { var out = []; for (var i = a; i <= b; i += st) out.push(i); return out; }
-
-  function buildForm() {
-    var f = $("pref-form"), S = data.SCALES;
-    var ages = range(22, 40, 1).map(function (n) { return [n, n + "세"]; });
-    var heights = range(150, 195, 5).map(function (n) { return [n, n + "cm"]; });
-
-    var g0 = group("만나고 싶은 상대");
-    var radios = el("div", { class: "radios", role: "radiogroup", "aria-label": "만나고 싶은 상대의 성별" });
-    [["여", "여성"], ["남", "남성"]].forEach(function (o, i) {
-      var inp = el("input", { type: "radio", name: "gender", id: "gender-" + i, value: o[0] });
-      if (i === 0) inp.checked = true;
-      radios.appendChild(el("label", { class: "chip", for: "gender-" + i }, inp, o[1]));
+    var nodes = rows.map(function (r) {
+      var leg = el("div", { class: "leg" },
+        el("div", { class: "leg-top" }, el("strong", { text: r.name }), el("i", { class: "dotsline", "aria-hidden": "true" }), el("span", { class: "num", text: r.hour + "시간째" })),
+        el("p", { text: r.line }), el("p", { class: "delta", text: r.delta }));
+      legs.appendChild(leg);
+      return leg;
     });
-    g0.appendChild(radios);
-
-    var g1 = group("꼭 지켜야 할 조건", "여기서 고른 조건에 하나라도 안 맞으면 1단계에서 걸러집니다.");
-    g1.appendChild(el("div", { class: "grid3" },
-      select("ageMin", "나이 최소", ages), select("ageMax", "나이 최대", ages),
-      select("smoke", "흡연", [["비흡연만", "비흡연자만"]])));
-    g1.appendChild(el("div", { class: "grid3" },
-      select("heightMin", "키 최소", heights), select("heightMax", "키 최대", heights),
-      select("religion", "종교 (고르면 일치 필수)", uniq("종교"))));
-    var cityOnly = el("input", { type: "checkbox", id: "cityOnly" });
-    g1.appendChild(el("div", { class: "row2" }, select("city", "사는 곳", uniq("거주_시")),
-      el("label", { class: "check", for: "cityOnly", style: "align-self:end;padding-bottom:8px" }, cityOnly, "이 지역 사람만 (거르기)")));
-
-    var g2 = group("원하는 가치관 · 생활습관", "같으면 만점, 한 칸 차이면 부분 점수입니다.");
-    g2.appendChild(el("div", { class: "grid3" },
-      select("결혼의향", "결혼 시기", S["결혼의향"]), select("자녀계획", "자녀 계획", uniq("자녀계획")),
-      select("연락빈도", "연락 빈도", S["연락빈도"])));
-    g2.appendChild(el("div", { class: "grid3" },
-      select("음주", "음주", S["음주"]), select("운동", "운동", S["운동"]),
-      select("주말스타일", "주말 스타일", S["주말스타일"])));
-    g2.appendChild(el("div", { class: "grid3" },
-      select("반려동물", "반려동물", S["반려동물"]), select("edu", "학력 (한 단계 차이까지 인정)", S["학력"]),
-      select("salaryMin", "연봉 최소", S["연봉구간"])));
-    var mbti = el("div", { class: "grid4" });
-    [["E", "I"], ["N", "S"], ["T", "F"], ["J", "P"]].forEach(function (pair, i) {
-      mbti.appendChild(select("mbti" + i, "MBTI " + (i + 1) + "번째", pair));
+    rows.forEach(function (r, k) {
+      later(function () { nodes[k].classList.add("on"); setMeters(r.now); }, 500 + k * 1300);
     });
-    g2.appendChild(mbti);
-
-    var g3 = group("관심사 · 외모 스타일");
-    g3.appendChild(el("p", { class: "legend-note", text: "관심사 최대 " + LIMITS.interests + "개 — 겹치는 1개당 5점" }));
-    g3.appendChild(chips("interests", uniq("관심사", true), LIMITS.interests));
-    g3.appendChild(el("p", { class: "legend-note", text: "선호하는 외모 스타일 최대 " + LIMITS.looks + "개 — 하나라도 겹치면 5점" }));
-    g3.appendChild(chips("looks", uniq("외모스타일", true), LIMITS.looks));
-
-    var g4 = group("내가 특히 중요하게 보는 항목", "최대 " + LIMITS.important + "개. 고른 항목은 호감도에서 " + data.WEIGHT_IMPORTANT + "배로 계산합니다.");
-    g4.appendChild(chips("important", Object.keys(data.MAX), LIMITS.important));
-
-    [g0, g1, g2, g3, g4].forEach(function (g) { f.appendChild(g); });
+    later(function () {
+      $("verdict-a").textContent = t.couple ? "커플 성사" : "엇갈림";
+      $("verdict-b").textContent = "48시간 뒤 " + fmt(t.end.me) + " / " + fmt(t.end.them);
+      $("verdict").classList.add("on");
+      $("verdict-note").textContent = t.couple
+        ? "두 사람 모두 " + M.COUPLE_MIN + "점을 넘었습니다. 콘솔 버전에서는 이런 커플에게 데이트 바우처를 나눠 지급합니다."
+        : "커플이 되려면 두 사람 모두 " + M.COUPLE_MIN + "점 이상이어야 합니다(막대 위의 흰 선). 다른 사람을 골라 다시 떠나 볼 수 있습니다.";
+    }, 500 + rows.length * 1300);
   }
+  $("replay-trip").addEventListener("click", playTrip);
+  $("logic-btn").addEventListener("click", function () {
+    stopTimers();
+    $("legs").querySelectorAll(".leg").forEach(function (x) { x.classList.add("on"); });
+    setMeters(st.trip.end);
+    $("verdict-a").textContent = st.trip.couple ? "커플 성사" : "엇갈림";
+    $("verdict-b").textContent = "48시간 뒤 " + fmt(st.trip.end.me) + " / " + fmt(st.trip.end.them);
+    $("verdict").classList.add("on");
+    renderLogic();
+    show("logic");
+    $("logic").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
+    $("logic-title").focus({ preventScroll: true });
+    playLogic();
+  });
 
-  var SELECTS = ["ageMin", "ageMax", "smoke", "heightMin", "heightMax", "religion", "city", "결혼의향", "자녀계획",
-    "연락빈도", "음주", "운동", "주말스타일", "반려동물", "edu", "salaryMin"];
-
-  function readForm() {
-    var pref = M.emptyPref();
-    pref.gender = document.querySelector("input[name=gender]:checked").value;
-    SELECTS.forEach(function (id) { pref[id] = $(id).value; });
-    pref.mbti = [0, 1, 2, 3].map(function (i) { return $("mbti" + i).value; });
-    pref.cityOnly = $("cityOnly").checked;
-    ["interests", "looks", "important"].forEach(function (n) {
-      pref[n] = Array.prototype.map.call(document.querySelectorAll("input[name=" + n + "]:checked"), function (x) { return x.value; });
-    });
-    return pref;
-  }
-  function setSelect(id, v) {
-    var s = $(id);
-    s.value = Array.prototype.some.call(s.options, function (o) { return o.value === String(v); }) ? String(v) : ANY;
-  }
-  function writeForm(pref) {
-    document.querySelectorAll("input[name=gender]").forEach(function (x) { x.checked = x.value === pref.gender; });
-    SELECTS.forEach(function (id) { setSelect(id, pref[id]); });
-    [0, 1, 2, 3].forEach(function (i) { setSelect("mbti" + i, (pref.mbti || [])[i]); });
-    $("cityOnly").checked = !!pref.cityOnly;
-    ["interests", "looks", "important"].forEach(function (n) {
-      document.querySelectorAll("input[name=" + n + "]").forEach(function (x) { x.checked = (pref[n] || []).indexOf(x.value) !== -1; });
-    });
-  }
-
-  function randomPref() {  // 시연용: 범주 안에서 무작위로 채우기 (거르기는 느슨하게)
-    var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
-    var some = function (a, n) { return a.slice().sort(function () { return Math.random() - 0.5; }).slice(0, n); };
-    var p = M.emptyPref(), S = data.SCALES;
-    p.gender = pick(["남", "여"]);
-    var lo = pick(range(24, 30, 1));
-    p.ageMin = String(lo); p.ageMax = String(lo + pick([6, 8, 10]));
-    ["결혼의향", "음주", "운동", "주말스타일", "반려동물", "연락빈도"].forEach(function (k) { p[k] = pick(S[k]); });
-    p["자녀계획"] = pick(uniq("자녀계획"));
-    p.mbti = [pick(["E", "I", ANY]), pick(["N", "S", ANY]), pick(["T", "F", ANY]), pick(["J", "P", ANY])];
-    p.interests = some(uniq("관심사", true), 4);
-    p.looks = some(uniq("외모스타일", true), 2);
-    p.important = some(Object.keys(data.MAX), 2);
-    return p;
-  }
-
-  $("random-btn").addEventListener("click", function () { writeForm(randomPref()); $("pref-error").textContent = ""; });
-  $("reset-btn").addEventListener("click", function () { writeForm(M.emptyPref()); $("pref-error").textContent = ""; });
-
-  // ------------------------------------------------------------ 결과
-  function stepCard(no, title, sub) {
-    var box = el("article", { class: "step" },
-      el("div", { class: "step-head" }, el("span", { class: "step-no", text: no }), el("h2", { text: title })));
-    if (sub) box.appendChild(el("p", { class: "muted", style: "font-size:.88rem", text: sub }));
-    return box;
-  }
-  function bar(label, s, mx) {
-    var fill = el("span", { class: "fill" });
-    fill.style.width = (mx ? (100 * s / mx) : 0) + "%";
-    return el("div", { class: "bar" }, el("span", { text: label }), el("span", { class: "track" }, fill), el("span", { class: "val", text: s + "/" + mx }));
-  }
-  function wanted(v) { return v === ANY || v == null ? "상관없음" : v; }
-
-  function logicRows(pref, p, sc) {  // '로직 보기': 항목별로 내가 원한 것 → 상대의 값 → 점수
-    var shared = M.sharedInterests(pref, p);
-    var ageWant = pref.ageMin !== ANY && pref.ageMax !== ANY
-      ? pref.ageMin + "~" + pref.ageMax + "세 (가운데 " + (Number(pref.ageMin) + Number(pref.ageMax)) / 2 + "세)" : "범위를 다 정하지 않음 (만점)";
-    return [
-      ["가치관", "결혼 " + wanted(pref["결혼의향"]) + " · 자녀 " + wanted(pref["자녀계획"]), "결혼 " + p["결혼의향"] + " · 자녀 " + p["자녀계획"]],
-      ["생활습관", data.HABITS.map(function (h) { return h + " " + wanted(pref[h]); }).join(" · "), data.HABITS.map(function (h) { return h + " " + p[h]; }).join(" · ")],
-      ["관심사", pref.interests.length ? pref.interests.join("·") : "상관없음", M.list(p["관심사"]).join("·") + (shared.length ? " → 겹침 " + shared.join("·") : " → 겹침 없음")],
-      ["성격·소통", "연락 " + wanted(pref["연락빈도"]) + " · MBTI " + pref.mbti.map(function (c) { return c || "?"; }).join(""), "연락 " + p["연락빈도"] + " · MBTI " + p["MBTI"]],
-      ["나이", ageWant, p["나이"] + "세"],
-      ["거주지", wanted(pref.city), p["거주_시"] + " " + p["거주_구"]],
-      ["외모스타일", pref.looks.length ? pref.looks.join("·") : "상관없음", M.list(p["외모스타일"]).join("·")],
-      ["경제·학력", "연봉 " + wanted(pref.salaryMin) + " 이상 · 학력 " + wanted(pref.edu), "연봉 " + p["연봉구간"] + " · 학력 " + p["학력"]]
-    ].map(function (r) { return r.concat([sc[r[0]] + "/" + data.MAX[r[0]]]); });
-  }
-
-  function table(head, rows, firstHighlight, rightCols) {
+  // ------------------------------------------------------------ 로직 공개
+  function table(head, rows, opts) {
+    opts = opts || {};
+    var right = opts.right || [], mark = opts.mark || [];
     var tr0 = el("tr");
-    head.forEach(function (h) { tr0.appendChild(el("th", { text: h })); });
+    head.forEach(function (h, j) { tr0.appendChild(el("th", right.indexOf(j) !== -1 ? { class: "r", text: h } : { text: h })); });
     var tb = el("tbody");
     rows.forEach(function (r, i) {
-      var tr = el("tr", firstHighlight && i === 0 ? { class: "first" } : null);
-      r.forEach(function (c, j) { tr.appendChild(el("td", (rightCols || []).indexOf(j) !== -1 ? { class: "r", text: c } : { text: c })); });
+      var tr = el("tr", mark.indexOf(i) !== -1 ? { class: "mark" } : null);
+      r.forEach(function (c, j) { tr.appendChild(el("td", right.indexOf(j) !== -1 ? { class: "r", text: c } : { text: c })); });
       tb.appendChild(tr);
     });
     return el("div", { class: "tbl" }, el("table", null, el("thead", null, tr0), tb));
   }
+  function lstep(title, say, body) {
+    var side = el("div", { class: "say" }, el("h3", { text: title }));
+    say.forEach(function (x) { side.appendChild(typeof x === "string" ? el("p", { text: x }) : x); });
+    var b = el("div", { class: "body" });
+    body.forEach(function (x) { b.appendChild(x); });
+    return el("article", { class: "lstep" }, side, b);
+  }
+  function effectText(set) {
+    return Object.keys(set).map(function (k) {
+      var v = set[k];
+      if (k === "interests") return "관심사 " + v.join("·");
+      if (k === "looks") return "외모 " + v.join("·");
+      if (k === "salaryMin") return v ? "연봉 " + v + " 이상" : "연봉 상관없음";
+      if (k === "tall") return v ? (st.gender === "남" ? "키 " + M.TALL["남"] + "cm 이상" : "키 " + M.TALL["여"] + "cm 이하") : "키 상관없음";
+      if (k === "ageSpan") return "나이 " + st.age + "±" + v + "세";
+      if (k === "religionNone") return v ? "종교 없는 사람만" : "종교 상관없음";
+      if (k === "EI") return "MBTI 첫 글자 " + v;
+      if (k === "JP") return "MBTI 끝 글자 " + v;
+      return k + " " + v;
+    }).join(", ");
+  }
+  function link(href, text) { return el("a", { href: href, text: text }); }
 
-  function render(pref) {
-    var res = M.match(data, pref), f = res.filter, box = $("steps");
+  function renderLogic() {
+    var box = $("steps"), c = st.cand, row = st.row, p = row.p, t = st.trip, me = st.me, pref = st.pref;
     box.textContent = "";
-    var who = pref.gender === "여" ? "여성" : "남성";
 
-    var s1 = stepCard("1", "거르기", "내가 고른 '꼭 지켜야 할 조건'으로 " + who + " " + f.pool + "명을 검사합니다. 한 사람이 여러 조건에 걸리면 각각 셉니다.");
-    s1.appendChild(table(["조건", "걸린 인원"], M.RULES.map(function (r) { return [r, f.counts[r] + "명"]; }), false, [1]));
-    s1.appendChild(el("p", null, "하나라도 걸린 ", el("b", { class: "num", text: f.dropped + "명" }), " 제외 → 남은 ", el("b", { class: "num", text: f.passed.length + "명" })));
-    s1.appendChild(el("p", { class: "muted", style: "font-size:.82rem", text: "가상 인물이 바라는 조건(나이·흡연 등)은 내 정보가 없어 이 페이지에서는 검사하지 않습니다. 콘솔 버전(match.py)은 양방향으로 검사합니다." }));
-    box.appendChild(s1);
+    // 1) 카드 → 성향
+    box.appendChild(lstep("카드 16장이 내 성향이 됐습니다", [
+      "카드마다 고른 쪽이 점수표의 한 칸을 채웁니다. 같은 값을 바라는 상대의 값으로도 씁니다. 묻지 않은 자녀 계획·학력·사는 곳은 상관없음(만점)으로 둡니다.",
+      el("p", { class: "sources" }, "카드 주제는 커플 여행에서 자주 부딪힌다고 조사된 지점(준비 방식, 예산, 식사, 기상 시간, 각자 시간)에서 골랐습니다. ",
+        link("https://www.scotsman.com/read-this/one-in-four-couples-consider-themselves-incompatible-travel-partners-5510281", "Railcard 조사"), ", ",
+        link("https://talkerresearch.com/is-travel-the-ultimate-relationship-test/", "Talker Research"), ", ",
+        link("https://www.ttgasia.com/?p=37297", "Skyscanner 조사"), ", ",
+        link("https://www.gqkorea.co.kr/?p=307376", "GQ Korea 여행 궁합"), ", ",
+        link("https://www.gqkorea.co.kr/?p=355227", "GQ Korea 각자 시간"))
+    ], [table(["장면", "고른 답", "반영된 값"], M.CARDS.map(function (cd, i) {
+      var side = cd[st.answers[i]];
+      return [cd.scene, side.text, effectText(side.set)];
+    }))]));
 
-    if (!res.rows.length) {
-      var worst = M.RULES.slice().sort(function (a, b) { return f.counts[b] - f.counts[a]; })[0];
-      var none = stepCard("!", "조건에 맞는 사람이 없습니다");
-      none.appendChild(el("p", { text: "가장 많이 거른 조건은 '" + worst + "'입니다 (" + f.counts[worst] + "명). 이 조건을 넓혀 다시 찾아보세요." }));
-      box.appendChild(none);
-      return;
-    }
+    // 2) 여행 온도
+    var heatRows = [["쉬는 방식", me["주말스타일"], ["집", "반반", "밖"]], ["술자리", me["음주"], ["안마심", "가끔", "자주"]],
+      ["아침 운동", me["운동"], ["안함", "주1~2", "주3이상"]], ["함께하는 시간", me["연락빈도"], ["적게", "보통", "자주"]]]
+      .map(function (r) { return [r[0], r[1], String(Math.max(0, r[2].indexOf(r[1])))]; });
+    heatRows.push(["사람 만나는 방식", me.EI === "E" ? "외향 E" : "내향 I", me.EI === "E" ? "2" : "0"]);
+    heatRows.push(["일정 짜는 방식", me.JP === "P" ? "즉흥 P" : "계획 J", me.JP === "P" ? "2" : "0"]);
+    box.appendChild(lstep("여행 온도로 도시를 정했습니다", [
+      "바깥으로, 술자리로, 아침 운동으로, 함께, 외향적으로, 즉흥적으로 갈수록 뜨겁습니다. 0~4점은 삿포로, 5~7점은 홍콩, 8~12점은 하와이입니다.",
+      "가상 인물 70명도 같은 식으로 계산해 세 도시에 나눠 두었습니다."
+    ], [table(["항목", "내 답", "점수"], heatRows, { right: [2] }), el("p", { class: "sum", text: "합계 " + c.heat + "점 → " + c.city.name })]));
 
-    var s2 = stepCard("2", "문장 비교 (건너뜀)");
-    s2.appendChild(el("p", { class: "muted", text: "콘솔 버전은 자기소개 문장을 로컬 임베딩으로 비교해 비슷한 " + data.K + "명을 먼저 추립니다. 방문자는 자기소개를 쓰지 않으므로 이 단계 없이 통과자 " + f.passed.length + "명 전원을 3단계로 넘깁니다." }));
-    box.appendChild(s2);
+    // 3) 같은 도시 → 거르기
+    var cityNames = c.cities.map(function (id) { return M.CITIES.filter(function (x) { return x.id === id; })[0].name; });
+    box.appendChild(lstep("같은 도시 사람만 남겼습니다", [
+      "카드에서 고른 나이·키·종교 조건에 하나라도 걸리면 뺍니다. 한 사람이 여러 조건에 걸리면 각각 셉니다. 남은 사람이 3명이 안 되면 가까운 도시까지 넓힙니다."
+    ], [table(["단계", "인원"], [
+      [(st.gender === "여" ? "여성" : "남성") + " 전체", c.people + "명"],
+      [cityNames.join(" + ") + "에 배정된 사람", c.pool + "명"],
+      ["나이 " + pref.ageMin + "~" + pref.ageMax + "세 밖", c.counts["희망 나이"] + "명"],
+      [pref.heightMin ? "키 " + pref.heightMin + "cm 미만" : pref.heightMax ? "키 " + pref.heightMax + "cm 초과" : "키 조건 없음", c.counts["희망 키"] + "명"],
+      [pref.religionNone ? "종교가 있는 사람" : "종교 조건 없음", c.counts["종교"] + "명"],
+      ["남은 사람", c.passed + "명"]], { right: [1], mark: [5] })]));
 
-    var s3 = stepCard("3", "순위", "100점 규칙 점수에 내 중요항목 가중치(" + data.WEIGHT_IMPORTANT + "배)를 준 호감도 순입니다. 동점이면 가치관 → 생활습관 순. 상위 10명까지 보여 줍니다.");
-    s3.appendChild(table(["순위", "상대", "나이", "사는 곳", "규칙 점수", "호감도"], res.rows.slice(0, 10).map(function (r) {
-      return [r.rank, r.p["번호"] + " " + r.p["이름"], r.p["나이"] + "세", r.p["거주_시"] + " " + r.p["거주_구"], r.total, r.affinity];
-    }), true, [0, 4, 5]));
-    box.appendChild(s3);
+    // 4) 성향 벡터
+    var top5 = c.sims.slice(0, 5);
+    box.appendChild(lstep("성향 벡터로 가까운 " + top5.length + "명을 추렸습니다", [
+      "언어 모델 대신, 카드가 묻는 성향 14가지를 −1~1 숫자로 늘어놓은 벡터를 만들고 나와 상대의 코사인 유사도를 쟀습니다. 1에 가까울수록 같은 방향입니다.",
+      "콘솔 버전(match.py)은 자기소개 문장을 로컬 임베딩 모델로 비교합니다. 방문자는 자기소개를 쓰지 않으므로 이 웹은 성향 벡터를 씁니다."
+    ], [table(["상대", "나이", "성향 유사도"], top5.map(function (x) { return [x.p["이름"], x.p["나이"] + "세", x.sim.toFixed(3)]; }),
+      { right: [2], mark: top5.map(function (x, i) { return x.p === p ? i : -1; }) })]));
 
-    var top = res.rows[0], p = top.p;
-    var s4 = stepCard("4", "48시간 상대와 그 이유");
-    s4.appendChild(el("div", { class: "match-card" },
-      el("h3", { text: p["번호"] + " " + p["이름"] + " · " + p["나이"] + "세 · " + p["거주_시"] + " " + p["거주_구"] + " · " + p["직업군"] }),
-      el("p", { class: "intro", text: p["자기소개"] }),
-      el("p", { class: "muted", style: "font-size:.85rem", text: "관심사 " + M.list(p["관심사"]).join("·") + " · MBTI " + p["MBTI"] + " · 외모 " + M.list(p["외모스타일"]).join("·") })));
-    var bars = el("div", { style: "display:grid;gap:8px" });
-    Object.keys(data.MAX).forEach(function (c) { bars.appendChild(bar(c, top.score[c], data.MAX[c])); });
-    s4.appendChild(bars);
-    s4.appendChild(el("p", { class: "num", text: "규칙 점수 " + top.total + "/100 · 호감도 " + top.affinity }));
-    s4.appendChild(el("p", { class: "reason", text: "→ " + res.reason }));
+    // 5) 규칙 점수
+    var bars = el("div", { class: "bars" });
+    Object.keys(data.MAX).forEach(function (cat) {
+      var fill = el("i", { "data-w": row.score[cat] / data.MAX[cat] });
+      bars.appendChild(el("div", { class: "sbar" }, el("span", { text: cat }), el("span", { class: "bar" }, fill),
+        el("b", { text: fmt(row.score[cat]) + "/" + data.MAX[cat] })));
+    });
+    box.appendChild(lstep(top5.length + "명을 궁합 점수로 다시 줄 세웠습니다", [
+      "콘솔 버전과 같은 100점 점수표입니다. 외모·연봉 배점을 작게 둔 것은 오래가는 관계를 가치관과 생활습관이 좌우하기 때문입니다.",
+      "상위 " + c.picks.length + "명을 보여 드렸고, 그중 " + p["이름"] + " 님을 고르셨습니다."
+    ], [bars, el("p", { class: "sum", text: "궁합 " + fmt(row.total) + "/100" }), el("p", { text: row.reason })]));
 
-    var P = data.POINTS;
-    var det = el("details", null, el("summary", { text: "로직 보기: 이 점수가 어떻게 나왔나요?" }),
-      el("div", null,
-        table(["항목", "내가 원한 것", p["이름"] + " 님", "점수"], logicRows(pref, p, top.score), false, [3]),
-        el("p", { class: "muted", style: "font-size:.85rem", text:
-          "점수 규칙: 결혼 시기 같으면 " + P["결혼_같음"] + "·한 칸 차이 " + P["결혼_한칸"] + " / 자녀 계획 같으면 " + P["자녀_같음"] + "·한쪽 모름 " + P["자녀_모름"] +
-          " / 생활습관 항목마다 같으면 " + P["습관_같음"] + "·한 칸 차이 " + P["습관_한칸"] + " / 관심사 1개당 " + P["관심사_개당"] + "(최대 " + P["관심사_최대"] + ")" +
-          " / 연락 빈도 같으면 " + P["연락_같음"] + "·한 칸 차이 " + P["연락_한칸"] + ", MBTI 글자당 " + P["MBTI_글자"] +
-          " / 나이는 원하는 나이대 가운데에서 " + data.AGE_BANDS[0] + "세 이내 " + P["나이_0_2"] + "·" + data.AGE_BANDS[1] + "세 이내 " + P["나이_3_5"] + "·그 밖 " + P["나이_6이상"] +
-          " / 사는 곳 맞으면 " + P["같은구"] + "·다르면 " + P["다른시"] + " / 외모 겹치면 " + P["외모_겹침"] + " / 연봉 충족 " + P["연봉_충족"] + "·학력 한 단계 이내 " + P["학력_한단계"] +
-          ". '상관없음'으로 둔 항목은 만점입니다. 외모·연봉 배점을 작게 둔 것은 오래가는 관계는 가치관·생활습관이 좌우하기 때문입니다." })));
-    s4.appendChild(det);
-    box.appendChild(s4);
+    // 6) 여행 계산
+    var trows = [["첫 만남", "궁합에 첫인상(±" + data.FIRST_IMPRESSION + ")", signed(t.first.me), signed(t.first.them), fmt(t.start.me) + " / " + fmt(t.start.them)]];
+    t.log.forEach(function (e) {
+      var pm = e.parts.me, pt = e.parts.them;
+      var how = KIND[e.kind] + (e.kind === "운" ? "" : " " + signed(pm.base)) + (pt.boost > 1 ? ", 상대 중요항목 ×" + pt.boost : "");
+      trows.push([e.hour + "시간째 " + e.name, how + ", 운 " + signed(pm.luck) + " / " + signed(pt.luck), signed(e.delta.me), signed(e.delta.them), fmt(e.now.me) + " / " + fmt(e.now.them)]);
+    });
+    var eff = data.TRIP_EFFECT;
+    box.appendChild(lstep("48시간 동안 이렇게 흔들렸습니다", [
+      "이벤트 10개 중 4개가 12시간마다 일어나 두 사람의 성향 차이를 시험합니다. 잘 맞으면 " + signed(eff["같음"]) + ", 한 칸 어긋나면 " + signed(eff["한칸"]) + ", 크게 부딪히면 " + signed(eff["두칸"]) + "에 사람마다 운 ±" + data.TRIP_LUCK + "이 더해집니다.",
+      "상대가 중요하게 보는 항목(" + (t.theirImportant.join("·") || "없음") + ")이 걸린 이벤트는 상대 쪽 효과가 " + data.IMPORTANT_BOOST + "배입니다. 같은 답과 같은 상대면 언제나 같은 여행입니다."
+    ], [table(["시점", "무슨 일", "나", p["이름"], "호감도"], trows, { right: [2, 3, 4] }),
+      el("p", { class: "sum", text: (t.couple ? "커플 성사" : "엇갈림") + " · 기준은 양쪽 모두 " + M.COUPLE_MIN + "점 이상" }),
+      el("p", { class: "sources", text: "콘솔 버전은 서로 호감도 " + data.COUPLE_MIN + "점 이상인 쌍만 골라 여행을 보내고, 여행 뒤에도 " + data.COUPLE_MIN + "점을 넘어야 커플입니다. "
+        + "이 웹은 그 확인 없이 고른 사람과 바로 떠나므로, 같은 기준이면 1위와 여행해도 커플이 4% 남짓입니다. 그래서 웹만 " + M.COUPLE_MIN + "점으로 두었습니다(같은 조건에서 약 23%)." })]));
   }
 
-  $("match-btn").addEventListener("click", function () {
-    var pref = readForm();
-    if (pref.ageMin !== ANY && pref.ageMax !== ANY && Number(pref.ageMin) > Number(pref.ageMax)) { $("pref-error").textContent = "나이 최소가 최대보다 큽니다."; return; }
-    if (pref.heightMin !== ANY && pref.heightMax !== ANY && Number(pref.heightMin) > Number(pref.heightMax)) { $("pref-error").textContent = "키 최소가 최대보다 큽니다."; return; }
-    $("pref-error").textContent = "";
-    store(PREF_KEY, pref);
-    render(pref);
-    $("prefs").hidden = true;
-    $("result").hidden = false;
-    window.scrollTo(0, 0);
+  function fillBars(s, on) {
+    s.querySelectorAll(".sbar i").forEach(function (f) { f.style.transform = "scaleX(" + (on ? f.getAttribute("data-w") : 0) + ")"; });
+  }
+  function playLogic() {
+    stopTimers();
+    var steps = $("steps").querySelectorAll(".lstep");
+    steps.forEach(function (s) { s.classList.remove("on"); fillBars(s, false); });
+    steps.forEach(function (s, k) { later(function () { s.classList.add("on"); fillBars(s, true); }, 300 + k * 900); });
+  }
+  $("logic-replay").addEventListener("click", playLogic);
+  $("logic-all").addEventListener("click", function () {
+    stopTimers();
+    $("steps").querySelectorAll(".lstep").forEach(function (s) { s.classList.add("on"); fillBars(s, true); });
   });
-  $("again-btn").addEventListener("click", function () { $("result").hidden = true; $("prefs").hidden = false; window.scrollTo(0, 0); });
+  $("again-btn").addEventListener("click", startCards);
 
   // ------------------------------------------------------------ 시작
   if (badKey) {
     $("mode-badge").textContent = "설정 오류";
-    $("gate").textContent = "";
-    $("gate").appendChild(el("p", { class: "error", text: "config.js에 비밀 키(service_role · sb_secret_)가 들어 있어 실행을 멈췄습니다. publishable(anon) 키로 바꿔 주세요." }));
+    var g = $("gate-form");
+    g.textContent = "";
+    g.appendChild(el("p", { class: "error", text: "config.js에 비밀 키(service_role · sb_secret_)가 들어 있어 실행을 멈췄습니다. publishable(anon) 키로 바꿔 주세요." }));
     return;
   }
   $("mode-badge").textContent = live ? "서버 연결: 정원 30명 적용" : "데모 모드: 이 브라우저에만 저장";
-  $("mode-badge").className = "badge " + (live ? "live" : "demo");
   $("scode-wrap").hidden = !live;
   showCount();
 
   fetch("profiles.json").then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (d) {
     data = d;
-    buildForm();
-    var saved = store(PREF_KEY);
-    if (saved) writeForm(Object.assign(M.emptyPref(), saved));
     var member = store(MEMBER_KEY);
     if (member && member.live === live) enter(member);
   }).catch(function () {
-    $("gate").appendChild(el("p", { class: "error", text: "가상 인물 데이터(profiles.json)를 불러오지 못했습니다. 페이지를 새로 고쳐 주세요." }));
+    $("gate-error").textContent = "가상 인물 데이터(profiles.json)를 불러오지 못했습니다. 페이지를 새로 고쳐 주세요.";
     $("gate-btn").disabled = true;
   });
 })();
