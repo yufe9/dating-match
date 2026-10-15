@@ -32,21 +32,27 @@ try {
   await sleep(800);
   await shot("1-prep");
   await click("prep-btn");
+  await sleep(1200);  // 대문이 사라지는 애니메이션(약 0.7초)을 기다립니다
   await sleep(500);
+  await shot("2a-dealing");  // 타로카드가 날아와 뒤집히는 중
+  await sleep(1400);
   for (let i = 0; i < 16; i++) {
     if (i === 6) await shot("2-card");
     await click("choice-" + pattern[i]);
-    await sleep(520);
+    await sleep(2700);  // 고른 카드가 날아가고(약 1초) 다음 두 장이 뒤집힐 때까지(약 1.5초)
   }
-  await sleep(1600);
+  await shot("2b-reveal");  // 마지막 카드가 탑승권으로 바뀌어 도착지가 굴러가는 중
+  await sleep(3400);       // 탑승권 연출(약 4.7초)이 끝나고 결과 화면으로
   await shot("3-result");
   await p.eval(() => document.querySelector(".passengers").scrollIntoView());
   await sleep(600);
   await shot("4-passengers");
   await p.eval(() => document.querySelector(".pass .btn").click());
-  await sleep(8500);
+  await sleep(1200);
   await p.eval(() => document.getElementById("trip").scrollIntoView());
-  await sleep(500);
+  await sleep(3300);
+  await shot("5a-trip-walking");  // 지도 위를 걷는 중
+  await sleep(6500);
   await shot("5-trip");
   await click("logic-btn");
   await sleep(7000);

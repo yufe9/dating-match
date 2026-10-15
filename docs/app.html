@@ -3,22 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co">
 <title>48시간 소개팅</title>
 <meta name="description" content="여행하며 상대를 알아가는 소개팅. 여행 취향 카드 16장으로 어울리는 도시와 그 도시의 사람을 찾고, 48시간 여행을 함께 떠나 봅니다.">
 <link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<link rel="preload" href="vendor/pretendard/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin>
 <script>document.documentElement.classList.add("js")</script>
 <style>
-/* 구조: 페이지 전체가 한 장의 탑승권 묶음입니다. 입장권 → 출발 준비 → 카드 16장 → 목적지 발권 → 후보(탑승객) → 48시간 일정표 → 로직 공개.
-   색은 여행지마다 바뀝니다(html[data-city]). 카드를 고르는 동안에도 지금 기울어진 도시의 색으로 바뀝니다. */
+/* 구조: 하늘 위의 유리 한 장씩. 대문(유리 카드 + 사진 더미) → 카드 16장(타로카드 두 장씩 뒤집기) → 목적지와 후보 → 48시간 일정표 → 로직 공개.
+   사용자 아티팩트 Liquid Glass Lab 양식과 레퍼런스(danielaristizabal.net)를 따릅니다. 글꼴은 전부 Pretendard(OFL, docs/vendor/pretendard).
+   색은 여행지마다 바뀝니다(html[data-city]). 카드를 고르는 동안 지금 기운 도시의 하늘로 바뀌지만, 글로는 알려 주지 않습니다. */
+@font-face { font-family: "Pretendard Variable"; font-weight: 45 920; font-style: normal; font-display: swap;
+  src: url("vendor/pretendard/PretendardVariable.woff2") format("woff2-variations"), url("vendor/pretendard/PretendardVariable.woff2") format("woff2"); }
 :root {
-  --field: #dedad3; --paper: #f3f2ef; --paper-2: #e6e4df; --ink: #0a0a0a; --muted: #55514a;
-  --accent: #256f82; --accent-ink: #ffffff; --on-field: #0a0a0a; --on-field-muted: #3f3c37;
-  --display: "Gowun Batang", "Nanum Myeongjo", "Batang", serif;
-  --text: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --display: var(--font); --text: var(--font);
+  --field: #aec6e2; --on-field: #11143a; --on-field-muted: #3a3f6e;
+  --ink: #11143a; --muted: #464b78; --accent: #2b3bff; --accent-2: #c4146e; --accent-ink: #ffffff;
+  --glass-a: rgba(255,255,255,.44); --glass-b: rgba(255,255,255,.16); --glass-c: rgba(255,255,255,.28);
+  --paper: rgba(255,255,255,.58); --paper-2: rgba(17,20,58,.10); --line: rgba(17,20,58,.12);
+  --b1: #ff2e93; --b2: #ff7a3d; --b3: #25d7ff; --b4: #2b3bff;
   --s-small: 0.875rem;
   --s-body: clamp(1.0625rem, 1.02rem + 0.2vw, 1.1875rem);
   --s-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
@@ -29,190 +33,237 @@
   --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
   --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms; --t-reveal: 800ms;
 }
-/* 하와이: 석양 — 뜨겁고 열정적 */
-html[data-city="hawaii"] { --field: #e2502a; --paper: #fff3e6; --paper-2: #fbe1cb; --ink: #2a0d05; --muted: #6b3a2a;
-  --accent: #a3123a; --accent-ink: #ffffff; --on-field: #1f0903; --on-field-muted: #3d1307; }
-/* 홍콩: 밤의 옥빛 거리와 네온 — 따뜻하지만 시린 구석 */
-html[data-city="hongkong"] { --field: #0e3a37; --paper: #f5ecdc; --paper-2: #eadcc4; --ink: #141110; --muted: #5a4d40;
-  --accent: #c8102e; --accent-ink: #ffffff; --on-field: #f5ecdc; --on-field-muted: #c9d6cf; }
-/* 삿포로: 얼음빛 눈과 가로등 하나 — 차갑지만 따뜻한 구석 */
-html[data-city="sapporo"] { --field: #c9dce7; --paper: #fbfcfd; --paper-2: #e6eef3; --ink: #0c1a24; --muted: #3f5464;
-  --accent: #a0520f; --accent-ink: #ffffff; --on-field: #0c1a24; --on-field-muted: #2e4352; }
+/* 하와이: 석양이 지는 산호빛 하늘 — 뜨겁고 열정적 */
+html[data-city="hawaii"] { --field: #f4a07c; --on-field: #2b0b16; --on-field-muted: #5a2433; --ink: #2b0b16; --muted: #6a3442;
+  --accent: #c4146e; --accent-2: #e2502a; --line: rgba(43,11,22,.14); --paper-2: rgba(43,11,22,.10);
+  --b1: #ff7a3d; --b2: #ffc65d; --b3: #ff2e93; --b4: #e2502a; }
+/* 홍콩: 밤의 옥빛 거리와 네온 — 따뜻하지만 시린 구석 (유일한 어두운 하늘: 유리도 어둡게, 글자는 밝게) */
+html[data-city="hongkong"] { --field: #0f2f3a; --on-field: #f3efe6; --on-field-muted: #bcd3cf; --ink: #f6f2ea; --muted: #c4d4d1;
+  --accent: #ff2e93; --accent-2: #25d7ff; --accent-ink: #1a0610; --line: rgba(255,255,255,.16); --paper-2: rgba(255,255,255,.14);
+  --glass-a: rgba(255,255,255,.18); --glass-b: rgba(255,255,255,.05); --glass-c: rgba(255,255,255,.10); --paper: rgba(255,255,255,.12);
+  --b1: #ff2e93; --b2: #25d7ff; --b3: #17a58b; --b4: #2b3bff; }
+/* 삿포로: 얼음빛 하늘과 가로등 하나 — 차갑지만 따뜻한 구석 */
+html[data-city="sapporo"] { --field: #d3e5ef; --on-field: #0c1a24; --on-field-muted: #33495a; --ink: #0c1a24; --muted: #3f5464;
+  --accent: #a0520f; --accent-2: #2b3bff; --line: rgba(12,26,36,.12); --paper-2: rgba(12,26,36,.10);
+  --b1: #25d7ff; --b2: #ffffff; --b3: #ffb35c; --b4: #8fb7ff; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { background: var(--field); scrollbar-color: var(--muted) var(--field); transition: background-color 700ms ease; }
-body { margin: 0; background: var(--field); color: var(--on-field); font: 400 var(--s-body)/1.55 var(--text);
-  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere; transition: background-color 700ms ease, color 700ms ease; }
+html { background: var(--field); scrollbar-color: var(--muted) var(--field); transition: background-color 900ms ease; }
+body { margin: 0; background: var(--field); color: var(--on-field); font: 400 var(--s-body)/1.6 var(--font); letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere; transition: background-color 900ms ease, color 900ms ease; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 [tabindex="-1"]:focus { outline: none; }  /* 화면 전환 때 스크립트로 옮긴 초점은 테두리 없이 */
-h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; }
+h1, h2, h3 { font-family: var(--display); font-weight: 680; margin: 0; line-height: 1.08; letter-spacing: -0.035em; text-wrap: balance; }
 p { margin: 0; }
 a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 img { display: block; max-width: 100%; height: auto; }
 
-main { position: relative; z-index: 1; background: var(--field); transition: background-color 700ms ease; padding-bottom: 160px; }
+main { position: relative; z-index: 1; background: var(--field); transition: background-color 900ms ease; padding-bottom: 160px; }
+/* 대문 밖 모든 화면 뒤에 떠다니는 색 덩어리 (도시마다 색이 바뀜) */
+.sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+body.at-intro .sky { display: none; }
 .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 24px var(--m); flex-wrap: wrap; }
-.wordmark { font-family: var(--display); font-weight: 700; font-size: var(--s-lead); text-decoration: none; }
+.wordmark { font-weight: 680; font-size: var(--s-lead); letter-spacing: -0.03em; text-decoration: none; }
 .status { display: flex; gap: 20px; flex-wrap: wrap; font-size: var(--s-small); color: var(--on-field-muted); align-items: baseline; }
 .linkish { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; }
-
 .screen { padding: 24px var(--m) 0; }
 
-/* ------------------------------------------------ 탑승권 (모든 종이의 공통 모양) */
-.ticket { position: relative; background: var(--paper); color: var(--ink); display: grid; max-width: 1240px; margin: 0 auto;
-  grid-template-columns: minmax(0, 1.7fr) 0 minmax(0, 1fr); border-radius: 10px; }
-.perf { position: relative; border-left: 6px dotted var(--field); margin: 28px 0; transition: border-color 700ms ease; }
-.perf::before, .perf::after { content: ""; position: absolute; left: -20px; width: 34px; height: 34px; border-radius: 50%; background: var(--field);
-  transition: background-color 700ms ease; }
-.perf::before { top: -46px; } .perf::after { bottom: -46px; }
-.part { padding: clamp(28px, 4vw, 64px); min-width: 0; display: grid; gap: 28px; align-content: start; }
-.stub { background: var(--paper-2); border-radius: 0 10px 10px 0; transition: background-color 700ms ease; }
-.field-row { display: flex; flex-wrap: wrap; gap: 24px 48px; }
-.field-row div { display: grid; gap: 2px; }
-.field-row span { font-size: var(--s-small); color: var(--muted); }
-.field-row strong { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; line-height: 1.2; }
+/* ------------------------------------------------ Liquid glass (아티팩트 Liquid Glass Lab 의 겹쳐 쌓은 반사층) */
+.glass { position: relative; isolation: isolate; --mx: 28%; --my: 0%; color: var(--ink);
+  background: linear-gradient(160deg, var(--glass-a), var(--glass-b) 45%, var(--glass-c)); /* taste-skill-ignore: 아티팩트 양식 */
+  -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6); /* taste-skill-ignore: 아티팩트 양식 */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), inset 0 -1px 0 rgba(255,255,255,.3), inset 1px 0 0 rgba(255,255,255,.4), inset -1px 0 0 rgba(255,255,255,.2), inset 0 14px 22px -16px rgba(255,255,255,.9), inset 0 -18px 26px -20px rgba(255,255,255,.5), 0 1px 2px rgba(17,20,58,.10), 0 30px 60px -28px rgba(17,20,58,.45); /* taste-skill-ignore: 아티팩트 양식 */ }
+.glass::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0; mix-blend-mode: screen;
+  background: radial-gradient(110% 80% at var(--mx) var(--my), rgba(255,255,255,.45), rgba(255,255,255,0) 55%); /* taste-skill-ignore: 아티팩트 양식 */ }
+.glass::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 0;
+  background: radial-gradient(55% 55% at var(--mx) var(--my), #fff, rgba(255,255,255,.3) 60%, rgba(255,255,255,.1)); /* taste-skill-ignore: 아티팩트 양식 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; /* taste-skill-ignore: 테두리 반사광 마스크 */ }
+.glass > * { position: relative; z-index: 1; }
+.panel { border-radius: 30px; padding: clamp(24px, 3.4vw, 44px); display: grid; gap: 22px; align-content: start; min-width: 0; }
 
-@media (max-width: 760px) {
-  .ticket { grid-template-columns: 1fr; }
-  .perf { border-left: 0; border-top: 6px dotted var(--field); margin: 0 22px; height: 0; }
-  .perf::before, .perf::after { top: -20px; bottom: auto; }
-  .perf::before { left: -46px; } .perf::after { left: auto; right: -46px; }
-  .stub { border-radius: 0 0 10px 10px; }
-}
+/* 아티팩트의 떠다니는 색 덩어리 */
+.blob { position: absolute; width: var(--w); aspect-ratio: 1; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; opacity: .55;
+  background: linear-gradient(var(--a), var(--c1), var(--c2)); /* taste-skill-ignore: 아티팩트 양식 */
+  filter: blur(36px); transition: background 900ms ease;
+  animation: morph var(--d) ease-in-out infinite alternate, drift calc(var(--d) * 1.6) ease-in-out infinite alternate; }
+@keyframes morph { 50% { border-radius: 63% 37% 38% 62% / 55% 61% 39% 45%; } 100% { border-radius: 35% 65% 49% 51% / 38% 32% 68% 62%; } }
+@keyframes drift { to { transform: translate3d(var(--tx), var(--ty), 0) rotate(40deg); } }
 
-/* ------------------------------------------------ 입장권 (첫 화면) */
-.hero-title { font-size: var(--s-display); line-height: 0.95; letter-spacing: -0.035em; }
-.hero-title span { display: block; }
-.lead { font-size: var(--s-lead); line-height: 1.45; max-width: 30ch; font-family: var(--display); }
-.plates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.plates figure { margin: 0; display: grid; gap: 8px; }
-.plates img { aspect-ratio: 1; object-fit: cover; width: 100%; }
-.plates figcaption { font-size: var(--s-small); color: var(--muted); }
+/* ------------------------------------------------ 버튼 · 입력 */
+.btn, .glass-btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; text-decoration: none; border: 0; border-radius: 999px;
+  font: 600 var(--s-body)/1 var(--font); padding: 18px 28px; cursor: pointer; color: var(--accent-ink);
+  background: radial-gradient(120% 140% at 50% -20%, rgba(255,255,255,.32), transparent 60%), linear-gradient(135deg, var(--accent), var(--accent-2)); /* taste-skill-ignore: 아티팩트 양식 */
+  transition: transform var(--t-press) var(--ease-out), filter var(--t-hover) ease; }
+.btn:active, .glass-btn:active { transform: scale(0.97); }
+.btn:disabled, .glass-btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.ghost { color: inherit; background: var(--paper-2); }
+.glass-btn.go { color: #fff; background: radial-gradient(120% 140% at 50% -20%, rgba(255,255,255,.32), transparent 60%), linear-gradient(135deg, #2b3bff, #c4146e); } /* taste-skill-ignore: 아티팩트 양식 */
+.glass-btn .arr, .btn .arr { display: inline-block; transition: transform var(--t-hover) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .btn:not(:disabled):hover, .glass-btn:not(:disabled):hover { filter: brightness(1.08); } .btn:hover .arr, .glass-btn:hover .arr { transform: translateX(4px); } }
 
 label.field { display: grid; gap: 6px; font-size: var(--s-small); font-weight: 600; color: var(--ink); }
-input[type=text], input[type=number] { font: 400 var(--s-body) var(--text); color: var(--ink); background: var(--paper); border: 1px solid var(--muted);
-  border-radius: 0; padding: 12px 14px; width: 100%; min-width: 0; caret-color: var(--accent); }
+input[type=text], input[type=number] { font: 400 var(--s-body) var(--font); color: var(--ink); background: var(--paper); border: 0; border-radius: 14px;
+  padding: 12px 14px; width: 100%; min-width: 0; caret-color: var(--accent);
+  box-shadow: inset 0 1px 2px rgba(17,20,58,.18), inset 0 0 0 1px var(--line); } /* taste-skill-ignore: 유리 위 입력칸의 안쪽 그림자 */
 input::placeholder { color: var(--muted); }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: var(--s-body); line-height: 1.5; }
 .check input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .notice { font-size: var(--s-body); line-height: 1.6; color: var(--ink); }
 .error { color: #b3261e; font-weight: 600; font-size: var(--s-small); }
+html[data-city="hongkong"] .error { color: #ff8a8a; }
 .error:empty { display: none; }
 
-.btn { display: inline-block; text-decoration: none; font: 600 var(--s-body) var(--text); border: 0; border-radius: 0; padding: 16px 26px; cursor: pointer; background: var(--accent);
-  color: var(--accent-ink); transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease, color var(--t-hover) ease; text-align: center; }
-.btn:active { transform: scale(0.97); }
-.btn.ghost { background: color-mix(in srgb, currentColor 13%, transparent); color: inherit; }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
-@media (hover: hover) and (pointer: fine) { .btn:not(:disabled):hover { background: var(--ink); color: var(--paper); } .btn.ghost:hover { background: var(--ink); color: var(--paper); } }
+/* ------------------------------------------------ 대문: 하늘색 한 면 + 겹쳐 쌓인 도시 사진 + 굴절 유리 카드 */
+body.at-intro, body.at-intro main { background: #aec6e2; }
+body.at-intro .top { position: absolute; inset: 0 0 auto 0; z-index: 6; color: #11143a; justify-content: flex-end; }
+body.at-intro .top .wordmark { display: none; }
+body.at-intro .status { color: #11143a; }
+body.at-intro main { padding-bottom: 0; }
+.hero { --sky: #aec6e2; --navy: #11143a; --electric: #2b3bff; --sunset: #ff7a3d; --neon: #ff2e93; --ice: #25d7ff;
+  --ink: #11143a; --muted: #464b78; --accent: #2b3bff; --paper: rgba(255,255,255,.62); --line: rgba(17,20,58,.10);
+  --glass-a: rgba(255,255,255,.42); --glass-b: rgba(255,255,255,.14); --glass-c: rgba(255,255,255,.26);
+  position: relative; min-height: max(100svh, 880px); overflow: hidden; background: var(--sky); color: var(--navy); isolation: isolate; }
+.hero .blobs { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.mark { position: absolute; left: clamp(16px, 3vw, 44px); top: clamp(18px, 3vw, 40px); z-index: 6; width: clamp(96px, 12vw, 176px); display: block; }
+.mark svg { width: 100%; height: auto; display: block; overflow: visible; }
+.word { position: absolute; right: clamp(16px, 3vw, 44px); top: clamp(96px, 13vh, 150px); margin: 0; z-index: 0; text-align: right;
+  font: 760 clamp(64px, 11.5vw, 196px)/.84 var(--font); letter-spacing: -.05em; white-space: nowrap; user-select: none; pointer-events: none; }
+.word span { display: block; }
+.word .fill { color: var(--electric); }
+.word .outline { color: transparent; -webkit-text-stroke: 2px var(--navy); }
+.collage { position: absolute; inset: 0; z-index: 1; }
+.collage figure { position: absolute; left: var(--x); top: var(--y); width: var(--w); margin: 0; z-index: var(--z, 1); }
+.collage img { width: 100%; height: auto; display: block; }
+.collage .cap { position: absolute; top: 0; right: calc(100% + 10px); writing-mode: vertical-rl; text-orientation: sideways;
+  font: 400 clamp(14px, 1.15vw, 17px)/1.2 var(--font); color: var(--navy); white-space: nowrap; }
+.corner { position: absolute; bottom: clamp(16px, 3vw, 32px); z-index: 6; font: 680 clamp(15px, 1.35vw, 20px)/1.2 var(--font);
+  letter-spacing: .01em; color: var(--navy); font-variant-numeric: tabular-nums; }
+.corner.l { left: clamp(16px, 3vw, 44px); } .corner.r { right: clamp(16px, 3vw, 44px); text-align: right; }
+.corner small { display: block; font: 400 var(--s-small)/1.4 var(--font); letter-spacing: 0; }
 
-.phone-only { display: none; }
-@media (max-width: 760px) { .phone-only { display: block; } }
+.sheet { position: absolute; z-index: 4; left: clamp(16px, 6vw, 110px); top: clamp(140px, 19vh, 200px); width: min(470px, calc(100% - 32px));
+  border-radius: 34px; padding: clamp(26px, 3vw, 38px); display: grid; gap: 22px; color: var(--navy); }
+.sheet h1 { font-size: clamp(2.6rem, 1.8rem + 2.6vw, 3.9rem); line-height: 1; letter-spacing: -.045em; }
+.sheet h2 { font-size: clamp(2rem, 1.5rem + 1.6vw, 2.8rem); line-height: 1.05; }
+.sheet .lede { font-size: var(--s-body); line-height: 1.6; color: var(--navy); max-width: 34ch; }
+.sheet .facts { display: flex; gap: 22px; flex-wrap: wrap; font: 680 var(--s-lead)/1.1 var(--font); letter-spacing: -.02em; }
+.sheet .facts span { display: grid; gap: 2px; }
+.sheet .facts small { font: 400 var(--s-small)/1.3 var(--font); letter-spacing: 0; color: #34386a; }
+.sheet .fine { font-size: var(--s-small); line-height: 1.55; color: #2c3060; }
+.sheet .back { justify-self: start; font: 500 var(--s-small) var(--font); color: #2c3060; background: none; border: 0; padding: 4px 0; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.sheet .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sheet .opt { position: relative; display: block; cursor: pointer; }
+.sheet .opt input { position: absolute; opacity: 0; pointer-events: none; }
+.sheet .opt span { display: block; padding: 18px 16px; border-radius: 20px; background: rgba(255,255,255,.45); font: 620 var(--s-body)/1.3 var(--font);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7); transition: background-color var(--t-hover) ease, color var(--t-hover) ease, transform var(--t-press) var(--ease-out); } /* taste-skill-ignore: 유리 칩 */
+.sheet .opt:active span { transform: scale(.98); }
+.sheet .opt input:checked + span { background: var(--navy); color: #fff; }
+.sheet .opt input:focus-visible + span { outline: 3px solid var(--electric); outline-offset: 3px; }
+.sheet .stepper { display: grid; grid-template-columns: 56px minmax(0, 120px) 56px; gap: 8px; align-items: stretch; }
+.sheet .stepper button { font: 600 1.5rem var(--font); border: 0; border-radius: 999px; cursor: pointer; background: var(--navy); color: #fff; transition: transform var(--t-press) var(--ease-out); }
+.sheet .stepper button:active { transform: scale(.94); }
+.sheet .stepper input { text-align: center; font: 680 var(--s-lead) var(--font); -moz-appearance: textfield; }
+.sheet .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-/* ------------------------------------------------ 48시간은 이렇게 (입장 화면의 일정표 슬립) */
-.how { max-width: 1240px; margin: 140px auto 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(24px, 5vw, 72px); align-items: start; }
-.how h2 { font-size: var(--s-head); }
-.how > div:first-child { display: grid; gap: 20px; max-width: 34ch; }
-.how-slip { background: var(--paper); color: var(--ink); padding: 34px clamp(22px, 3.4vw, 40px) 60px; display: grid; gap: 0; }
-.how-slip h3 { font-family: var(--text); font-size: var(--s-body); font-weight: 600; letter-spacing: 0; margin-top: 22px; }
-.how-slip h3:first-child { margin-top: 0; }
-.row { display: grid; grid-template-columns: auto minmax(20px, 1fr) auto; gap: 12px; align-items: baseline; padding: 10px 0; font-variant-numeric: tabular-nums; }
-.row i { border-bottom: 4px dotted var(--muted); transform: translateY(-6px); }
-.row span:last-child { color: var(--muted); }
-.row.total { background: var(--ink); color: var(--paper); padding: 12px 14px; margin-top: 18px; font-weight: 600; }
-.row.total i { border-color: var(--paper); }
-.row.total span:last-child { color: var(--paper); }
-.band { max-width: 1240px; margin: 120px auto 0; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
-.band figure { margin: 0; display: grid; gap: 8px; }
-.band img { width: 100%; height: clamp(200px, 22vw, 320px); object-fit: cover; }
-.band figcaption { font-size: var(--s-small); color: var(--on-field-muted); }
-@media (max-width: 860px) { .how { grid-template-columns: 1fr; } .band { grid-template-columns: 1fr 1fr; } .band figure:first-child { grid-column: 1 / -1; } }
+/* ------------------------------------------------ 카드 16장: 타로카드 두 장이 덱에서 날아와 한 장씩 뒤집힘 */
+.deck { max-width: 1040px; margin: 0 auto; display: grid; gap: clamp(20px, 3vw, 32px); justify-items: center; text-align: center; }
+.deck-head { display: grid; gap: 10px; justify-items: center; color: var(--on-field); }
+.deck-head .num { font-size: var(--s-small); font-weight: 600; color: var(--on-field-muted); letter-spacing: .02em; }
+.deck-head h2 { font-size: var(--s-head); }
+.dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--on-field); opacity: .22; transition: opacity var(--t-ui) ease, transform var(--t-ui) var(--ease-out); }
+.dots i.done { opacity: .9; }
+.dots i.now { opacity: 1; background: var(--accent); transform: scale(1.5); }
+.spread { display: flex; justify-content: center; align-items: center; gap: clamp(12px, 3vw, 44px); perspective: 1600px; width: 100%; }
+.or { font-weight: 680; font-size: var(--s-small); color: var(--on-field-muted); letter-spacing: .08em; }
+.tarot { width: min(300px, 40vw); aspect-ratio: 2 / 3; padding: 0; border: 0; background: none; cursor: pointer; color: inherit; font: inherit; border-radius: 22px; flex: none; }
+.tarot:focus-visible { outline: 3px solid var(--accent); outline-offset: 6px; }
+.t-inner { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; border-radius: 22px; }
+.t-face, .t-back { position: absolute; inset: 0; border-radius: 22px; -webkit-backface-visibility: hidden; backface-visibility: hidden; overflow: hidden; }
+/* 앞면: 유리처럼 비치는 카드 + 안쪽 테두리 (타로카드의 틀) */
+.t-face { display: grid; grid-template-rows: auto 1fr auto; padding: clamp(16px, 2vw, 26px); color: var(--ink);
+  background: linear-gradient(160deg, rgba(255,255,255,.78), rgba(255,255,255,.42) 50%, rgba(255,255,255,.62)); /* taste-skill-ignore: 아티팩트 양식 */
+  box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(255,255,255,.7), inset 0 18px 30px -20px #fff, 0 30px 60px -28px rgba(17,20,58,.5); /* taste-skill-ignore: 아티팩트 양식 */ }
+html[data-city="hongkong"] .t-face { background: linear-gradient(160deg, rgba(255,255,255,.22), rgba(255,255,255,.08) 50%, rgba(255,255,255,.16)); } /* taste-skill-ignore: 어두운 하늘의 유리 */
+.t-face::before { content: ""; position: absolute; inset: 10px; border-radius: 15px; border: 1.5px solid var(--line); pointer-events: none; } /* taste-skill-ignore: 타로카드 틀 */
+.t-num { font-weight: 680; font-size: var(--s-small); letter-spacing: .14em; color: var(--muted); }
+.t-text { align-self: center; font-weight: 680; font-size: clamp(1.05rem, .8rem + 1.1vw, 1.6rem); line-height: 1.35; letter-spacing: -.03em; text-wrap: balance; }
+.t-foot { font-size: var(--s-small); font-weight: 600; color: var(--muted); }
+/* 뒷면: 짙은 남색 위 하트 무늬와 48 */
+.t-back { transform: rotateY(180deg); display: grid; place-items: center; align-content: center; color: #fff; background-color: #141a5c;
+  background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,.18), transparent 60%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Cpath d='M18 26c-5-3.4-8-6-8-9a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 3-3 5.6-8 9z' fill='none' stroke='%23ffffff' stroke-opacity='.16' stroke-width='1.2'/%3E%3C/svg%3E"); /* taste-skill-ignore: 카드 뒷면 무늬 */
+  box-shadow: inset 0 0 0 10px #141a5c, inset 0 0 0 11.5px rgba(255,255,255,.35), 0 30px 60px -28px rgba(17,20,58,.6); } /* taste-skill-ignore: 타로카드 틀 */
+.t-back b { font-weight: 760; font-size: clamp(2.6rem, 2rem + 3vw, 4.4rem); letter-spacing: -.06em; line-height: 1; }
+.t-back small { display: block; margin-top: 6px; font-size: var(--s-small); letter-spacing: .3em; opacity: .75; }
+.tarot.picked .t-face { box-shadow: inset 0 0 0 3px var(--accent), 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent), 0 40px 70px -24px rgba(17,20,58,.55); } /* taste-skill-ignore: 고른 카드 표시 */
+@media (hover: hover) and (pointer: fine) { .tarot:not(:disabled) .t-face { transition: transform 240ms var(--ease-out); } .tarot:not(:disabled):hover .t-face { transform: translateY(-8px); } }
+.deck-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; max-width: 720px; color: var(--on-field); font-size: var(--s-small); }
+@media (max-width: 560px) { .spread { gap: 10px; } .or { display: none; } .tarot { width: calc((100vw - 2 * var(--m) - 10px) / 2); } .t-face::before { inset: 7px; } }
 
-/* ------------------------------------------------ 출발 준비 */
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.opt { position: relative; display: block; cursor: pointer; }
-.opt input { position: absolute; opacity: 0; pointer-events: none; }
-.opt span { display: block; padding: 22px 20px; background: var(--paper-2); font-family: var(--display); font-size: var(--s-lead); font-weight: 700;
-  line-height: 1.25; transition: background-color var(--t-hover) ease, color var(--t-hover) ease, transform var(--t-press) var(--ease-out); }
-.opt:active span { transform: scale(0.98); }
-.opt input:checked + span { background: var(--ink); color: var(--paper); }
-.opt input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 3px; }
-.stepper { display: grid; grid-template-columns: 64px minmax(0, 140px) 64px; align-items: stretch; }
-.stepper button { font: 600 1.5rem var(--text); background: var(--ink); color: var(--paper); border: 0; cursor: pointer; transition: transform var(--t-press) var(--ease-out); }
-.stepper button:active { transform: scale(0.94); }
-.stepper input { text-align: center; font-family: var(--display); font-size: var(--s-lead); font-weight: 700; border-left: 0; border-right: 0; -moz-appearance: textfield; }
-.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+/* 도시 공개: 마지막 카드가 돌며 사라지고 탑승권이 나타나 도착지가 전광판처럼 굴러 멈춤 */
+.reveal-stage { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; perspective: 1600px; pointer-events: none; padding: 0 var(--m); }
+.bpass { width: min(640px, 100%); min-height: 250px; border-radius: 28px; display: grid; grid-template-columns: minmax(0, 1fr) 180px; overflow: hidden; opacity: 0; }
+.bpass .bp-main { padding: 26px 30px; display: grid; align-content: space-between; gap: 10px; }
+.bpass small { font-size: var(--s-small); font-weight: 600; letter-spacing: .08em; color: var(--muted); }
+.bpass .bp-code { font-size: clamp(3.4rem, 2.4rem + 3vw, 4.8rem); font-weight: 760; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.bpass .bp-city { font-size: var(--s-lead); font-weight: 680; letter-spacing: -.02em; }
+.bpass .bp-stub { background: #141a5c; color: #fff; padding: 26px 22px; display: grid; align-content: space-between; border-left: 6px dotted rgba(255,255,255,.35); }
+.bpass .bp-stub small { color: #aeb4e0; }
+.bpass .bp-stub b { font-size: 2rem; font-weight: 760; letter-spacing: -.03em; }
+@media (max-width: 560px) { .bpass { grid-template-columns: minmax(0, 1fr) 104px; min-height: 210px; } .bpass .bp-main, .bpass .bp-stub { padding: 20px 18px; } .bpass .bp-stub b { font-size: 1.4rem; } }
 
-/* ------------------------------------------------ 카드 (양자택일) */
-.deck { max-width: 920px; margin: 0 auto; display: grid; gap: 22px; }
-.deck-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--on-field); }
-.dots { display: flex; gap: 6px; flex-wrap: wrap; }
-.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--on-field); opacity: 0.25; transition: opacity var(--t-ui) ease, transform var(--t-ui) var(--ease-out); }
-.dots i.done { opacity: 1; }
-.dots i.now { opacity: 1; background: var(--accent); transform: scale(1.35); }
-.lean { font-size: var(--s-small); color: var(--on-field-muted); }
-.lean b { color: var(--on-field); font-weight: 600; }
-.card { background: var(--paper); color: var(--ink); border-radius: 10px; display: grid; }
-.card-scene { padding: clamp(24px, 4vw, 44px) clamp(24px, 4vw, 44px) 8px; display: grid; gap: 6px; }
-.card-scene p { font-size: var(--s-small); color: var(--muted); }
-.card-scene h2 { font-size: var(--s-head); }
-.choices { display: grid; padding: 20px clamp(16px, 3vw, 28px) clamp(16px, 3vw, 28px); gap: 0; }
-.choice { font: 700 var(--s-lead)/1.3 var(--display); color: var(--ink); background: var(--paper-2); border: 0; border-radius: 0; text-align: left;
-  padding: clamp(22px, 3.4vw, 36px) clamp(20px, 3vw, 32px); cursor: pointer; min-height: 112px; display: flex; align-items: center;
-  transition: background-color var(--t-hover) ease, color var(--t-hover) ease, transform var(--t-press) var(--ease-out); }
-.choice:active { transform: scale(0.985); }
-.choice.picked { background: var(--accent); color: var(--accent-ink); }
-@media (hover: hover) and (pointer: fine) { .choice:hover { background: var(--ink); color: var(--paper); } }
-.or { position: relative; height: 34px; display: grid; place-items: center; }
-.or::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 6px dotted var(--paper-2); transform: translateY(-50%); }
-.or span { position: relative; background: var(--paper); padding: 0 14px; font-size: var(--s-small); color: var(--muted); }
-.deck-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--on-field); font-size: var(--s-small); }
-
-/* ------------------------------------------------ 목적지 발권 */
+/* ------------------------------------------------ 목적지 + 후보 */
 .reveal { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 4vw, 56px); align-items: start; }
 .city-photo { position: sticky; top: 24px; margin: 0; }
 .city-photo img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; }
-.city-photo figcaption { margin-top: 8px; font-size: var(--s-small); color: var(--on-field-muted); }
+.photo-frame { overflow: hidden; border-radius: 28px; }
+.city-photo figcaption { margin-top: 10px; font-size: var(--s-small); color: var(--on-field-muted); }
 .dest { display: grid; gap: 40px; min-width: 0; }
-.dest .ticket { width: 100%; }
-.dest-name { font-size: var(--s-display); line-height: 0.95; letter-spacing: -0.035em; }
-.dest .lead { max-width: 24ch; }
+.dest .panel { width: 100%; }
+.dest-from { font-size: var(--s-small); font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+.dest-name { font-size: var(--s-display); font-weight: 760; line-height: .95; letter-spacing: -.06em; }
+.lead { font-size: var(--s-lead); line-height: 1.45; font-weight: 500; max-width: 24ch; letter-spacing: -.02em; }
 .temp { display: grid; gap: 10px; }
-.temp-track { position: relative; height: 14px; background: var(--paper-2); overflow: hidden; }
-.temp-fill { position: absolute; inset: 0; background: var(--accent); transform-origin: left center; transform: scaleX(0);
-  transition: transform 1200ms var(--ease-in-out); }
+.temp-track { position: relative; height: 12px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+.temp-fill { position: absolute; inset: 0; border-radius: 999px; transform-origin: left center; transform: scaleX(0); transition: transform 1200ms var(--ease-in-out);
+  background: linear-gradient(90deg, #25d7ff, #ff2e93 55%, #ff7a3d); } /* taste-skill-ignore: 차가움 → 뜨거움 온도 막대 */
 .temp-scale { display: flex; justify-content: space-between; font-size: var(--s-small); color: var(--muted); }
-
 .passengers { display: grid; gap: 16px; }
 .passengers h2 { font-size: var(--s-head); color: var(--on-field); }
 .passengers > p { color: var(--on-field); max-width: 46ch; }
-.pass { background: var(--paper); color: var(--ink); border-radius: 10px; display: grid; grid-template-columns: minmax(0, 1fr) 0 auto; }
-.pass .part { gap: 14px; padding: clamp(22px, 3vw, 34px); }
-.pass .perf { margin: 18px 0; }
-.pass .perf::before { top: -36px; } .pass .perf::after { bottom: -36px; }
+.pass { border-radius: 26px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+/* 후보 얼굴: 사용자가 Gemini 로 만든 AI 가상 얼굴. 자리(A·B·C)마다 고정, 사람(이름·성격)과는 무관 */
+.pass .ava { margin: 0; padding: clamp(20px, 2.6vw, 30px) 0 clamp(20px, 2.6vw, 30px) clamp(20px, 2.6vw, 30px); display: grid; gap: 8px; justify-items: center; align-self: start; }
+.pass .ava img { width: clamp(104px, 10vw, 148px); aspect-ratio: 1; object-fit: cover; border-radius: 24px; }
+.pass .ava figcaption { font-size: 0.8125rem; color: var(--muted); white-space: nowrap; }
+.pass.best .ava img { outline: 3px solid rgba(255,255,255,.75); outline-offset: 3px; }
+.pass .perf { display: none; }
+.pass .part { display: grid; gap: 12px; padding: clamp(22px, 3vw, 32px); min-width: 0; }
 .pass h3 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem); }
-.pass .who { font-size: var(--s-small); color: var(--muted); }
-.pass .intro { max-width: 52ch; }
-.pass .why { font-weight: 600; }
+.pass .who { font-size: var(--s-small); color: var(--muted); font-weight: 600; }
+.pass .bio { max-width: 52ch; }
+.pass .why { font-weight: 620; }
 .pass .nums { display: flex; gap: 22px; flex-wrap: wrap; font-size: var(--s-small); color: var(--muted); }
-.pass .nums b { color: var(--ink); font-size: var(--s-body); }
-.pass .go { display: grid; align-content: center; padding: clamp(18px, 3vw, 30px); background: var(--paper-2); border-radius: 0 10px 10px 0; }
-.pass.best { background: var(--ink); color: var(--paper); }
-.pass.best .who, .pass.best .nums { color: color-mix(in srgb, var(--paper) 80%, var(--ink)); }
-.pass.best .nums b { color: var(--paper); }
-.pass.best .go { background: color-mix(in srgb, var(--paper) 14%, var(--ink)); }
+.pass .nums b { color: var(--ink); font-size: var(--s-body); font-weight: 680; }
+.pass .go { grid-column: 2; padding: 0 clamp(22px, 3vw, 32px) clamp(22px, 3vw, 32px); }  /* 버튼은 글 아래: 옆에 두면 글 칸이 너무 좁아짐 */
+.pass.best { color: #fff; --ink: #fff; --muted: rgba(255,255,255,.85);
+  background: radial-gradient(120% 120% at 20% 0%, rgba(255,255,255,.28), transparent 55%), linear-gradient(135deg, var(--accent), var(--accent-2)); } /* taste-skill-ignore: 궁합 1위 강조 */
+html[data-city="hongkong"] .pass.best { color: #1a0610; --ink: #1a0610; --muted: rgba(26,6,16,.8); }
+.pass.best .btn { background: rgba(255,255,255,.92); color: #11143a; }
 @media (max-width: 760px) {
   .reveal { grid-template-columns: 1fr; }
   .city-photo { position: static; }
   .city-photo img { aspect-ratio: 1; }
-  .pass { grid-template-columns: 1fr; }
-  .pass .perf { border-left: 0; border-top: 6px dotted var(--field); margin: 0 18px; }
-  .pass .perf::before { top: -20px; left: -40px; } .pass .perf::after { top: -20px; bottom: auto; left: auto; right: -40px; }
-  .pass .go { border-radius: 0 0 10px 10px; }
+  .pass { grid-template-columns: auto minmax(0, 1fr); }
+  .pass .ava { padding-right: 0; }
+  .pass .ava img { width: 84px; border-radius: 18px; }
+  .pass .part { padding-left: 16px; }
+  .pass .go { grid-column: 1 / -1; padding-top: 0; }
+  .pass .go .btn { width: 100%; }
 }
 
 /* ------------------------------------------------ 48시간 일정표 */
@@ -221,37 +272,66 @@ input::placeholder { color: var(--muted); }
 .trip-side h2 { font-size: var(--s-head); }
 .trip-side img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
 .trip-side figure { margin: 0; }
-.trip-side figcaption { margin-top: 8px; font-size: var(--s-small); color: var(--on-field-muted); }
-.slip { background: var(--paper); color: var(--ink); padding: 34px clamp(22px, 3.4vw, 40px) 64px; display: grid; gap: 22px; }
+.trip-side figcaption { margin-top: 10px; font-size: var(--s-small); color: var(--on-field-muted); }
+.slip { border-radius: 30px; padding: clamp(24px, 3.4vw, 40px); display: grid; gap: 22px; }
 .meters { display: grid; gap: 14px; }
-.meter { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; gap: 12px; align-items: center; font-size: var(--s-small); }
-.meter .bar { position: relative; height: 12px; background: var(--paper-2); overflow: hidden; }
-.meter .bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: left center; transform: scaleX(0); transition: transform 700ms var(--ease-in-out); }
+.meter { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 3.2em; gap: 12px; align-items: center; font-size: var(--s-small); font-weight: 600; }
+.meter .bar { position: relative; height: 12px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+.meter .bar i { position: absolute; inset: 0; border-radius: 999px; background: var(--ink); transform-origin: left center; transform: scaleX(0); transition: transform 700ms var(--ease-in-out); }
 .meter .bar i.them { background: var(--accent); }
-.meter .bar s { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--paper); text-decoration: none; }
-.meter b { text-align: right; font-size: var(--s-body); font-variant-numeric: tabular-nums; }
+.meter .bar s { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--field); text-decoration: none; }
+.meter b { text-align: right; font-size: var(--s-body); font-weight: 680; font-variant-numeric: tabular-nums; }
 .itinerary { display: grid; gap: 0; }
 .leg { display: grid; gap: 4px; padding: 16px 0; opacity: 0.28; transition: opacity 500ms ease; }
 .leg.on { opacity: 1; }
 .leg-top { display: grid; grid-template-columns: auto minmax(20px, 1fr) auto; gap: 12px; align-items: baseline; }
-.leg-top strong { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; line-height: 1.25; }
-.leg-top .dotsline { border-bottom: 4px dotted var(--muted); transform: translateY(-6px); }
-.leg-top span { font-size: var(--s-small); color: var(--muted); white-space: nowrap; }
+.leg-top strong { font-size: var(--s-lead); font-weight: 680; line-height: 1.25; letter-spacing: -.03em; }
+.leg-top .dotsline { border-bottom: 3px dotted var(--muted); transform: translateY(-6px); opacity: .6; }
+.leg-top span { font-size: var(--s-small); color: var(--muted); white-space: nowrap; font-weight: 600; }
 .leg p { font-size: var(--s-small); color: var(--muted); }
-.leg .delta { font-size: var(--s-body); color: var(--ink); font-variant-numeric: tabular-nums; }
-.verdict { background: var(--ink); color: var(--paper); padding: 16px 20px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  font-weight: 600; opacity: 0; transform: translateY(10px); transition: opacity 500ms ease, transform 600ms var(--ease-out); }
+.leg .delta { font-size: var(--s-body); color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+.verdict { border-radius: 999px; padding: 16px 24px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-weight: 680; color: var(--accent-ink);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); /* taste-skill-ignore: 결과 띠 */
+  opacity: 0; transform: translateY(10px); transition: opacity 500ms ease, transform 600ms var(--ease-out); }
 .verdict.on { opacity: 1; transform: none; }
 .verdict-note { font-size: var(--s-small); color: var(--muted); }
 @media (max-width: 860px) { .trip { grid-template-columns: 1fr; } }
+
+/* 지도: 도시 사진을 옅게 깐 유리 위에 공항 → 이벤트 4곳 경로, 두 사람 점이 따라 이동 */
+.map { position: relative; border-radius: 30px; overflow: hidden; }
+.map .map-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .22; filter: saturate(.6); }
+.map svg { position: relative; display: block; width: 100%; height: auto; }
+.map .sea { fill: var(--accent-2); opacity: .16; }
+.map .street { stroke: var(--ink); stroke-opacity: .10; stroke-width: 2; fill: none; }
+.map .route { fill: none; stroke: var(--ink); stroke-opacity: .28; stroke-width: 3; stroke-dasharray: 2 10; stroke-linecap: round; }
+.map .done { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; }
+.map .pin, .map .walker { transform-box: fill-box; transform-origin: center; }
+.map .pin circle { fill: var(--field); stroke: var(--ink); stroke-width: 2.5; transition: fill 300ms ease; }
+.map .pin.on circle { fill: var(--accent); stroke: var(--accent); }
+.map .pin text { font: 620 15px var(--font); fill: var(--ink); text-anchor: middle; }
+.map .walker circle { stroke: #fff; stroke-width: 3; }
+.map .walker text { font: 680 13px var(--font); text-anchor: middle; dominant-baseline: central; }
+.map .walker.me circle { fill: var(--ink); }
+.map .walker.me text { fill: var(--field); }
+.map .walker.them circle { fill: var(--accent); }
+.map .walker.them text { fill: var(--accent-ink); }
+.bubble { position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(var(--tx, -50%), var(--ty, calc(-100% - 26px))); width: max-content; max-width: min(300px, 70%);
+  padding: 12px 16px; border-radius: 18px; display: grid; gap: 2px; text-align: left; opacity: 0; pointer-events: none;
+  background: var(--paper); color: var(--ink); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); /* taste-skill-ignore: 지도 위 말풍선 유리 */
+  box-shadow: 0 18px 40px -20px rgba(17,20,58,.55); } /* taste-skill-ignore: 떠 있는 말풍선 */
+html[data-city="hongkong"] .bubble { background: rgba(15,47,58,.82); }
+.bubble b { font-size: var(--s-body); font-weight: 680; letter-spacing: -.02em; }
+.bubble span { font-size: var(--s-small); color: var(--muted); }
+.bubble .bd { color: var(--ink); font-weight: 620; font-variant-numeric: tabular-nums; }
+.map-cap { margin-top: 10px; font-size: var(--s-small); color: var(--on-field-muted); }
 
 /* ------------------------------------------------ 로직 공개 (타임라인 재생) */
 .logic { max-width: 1240px; margin: 0 auto; display: grid; gap: 28px; }
 .logic-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; color: var(--on-field); }
 .logic-head h2 { font-size: var(--s-head); }
 .logic-head p { max-width: 46ch; }
-.steps { display: grid; gap: 14px; }
-.lstep { background: var(--paper); color: var(--ink); border-radius: 10px; padding: clamp(22px, 3.4vw, 40px); display: grid; gap: 14px;
+.steps { display: grid; gap: 16px; }
+.lstep { border-radius: 28px; padding: clamp(22px, 3.4vw, 40px); display: grid; gap: 14px;
   grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: clamp(20px, 4vw, 56px); }
 .lstep h3 { font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2rem); }
 .lstep .say { display: grid; gap: 10px; align-content: start; }
@@ -261,47 +341,62 @@ input::placeholder { color: var(--muted); }
 .js .lstep.on { opacity: 1; transform: none; }
 .tbl { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: var(--s-small); min-width: 460px; }
-th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--paper-2); vertical-align: top; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--muted); font-weight: 600; }
 td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
-tr.mark td { background: var(--paper-2); font-weight: 600; }
-.sum { font-family: var(--display); font-size: var(--s-lead); font-weight: 700; }
+tr.mark td { background: var(--paper-2); font-weight: 620; }
+.sum { font-size: var(--s-lead); font-weight: 680; letter-spacing: -.03em; }
 .bars { display: grid; gap: 8px; }
 .sbar { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) 4em; gap: 10px; align-items: center; font-size: var(--s-small); }
-.sbar .bar { position: relative; height: 10px; background: var(--paper-2); overflow: hidden; }
-.sbar .bar i { position: absolute; inset: 0; background: var(--accent); transform-origin: left center; transform: scaleX(0); transition: transform 900ms var(--ease-out); }
-.sbar b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sbar .bar { position: relative; height: 10px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+.sbar .bar i { position: absolute; inset: 0; border-radius: 999px; background: var(--accent); transform-origin: left center; transform: scaleX(0); transition: transform 900ms var(--ease-out); }
+.sbar b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 620; }
 .sources { font-size: var(--s-small); color: var(--muted); }
 @media (max-width: 760px) { .lstep { grid-template-columns: 1fr; } table { min-width: 0; } th, td { padding: 8px 6px; } }
 
-/* ------------------------------------------------ 바닥 (커튼처럼 드러나는 탑승권 뒷면) */
-footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background: var(--ink); color: var(--paper);
-  display: grid; grid-template-rows: auto 1fr auto; padding: 40px var(--m) 20px; gap: 32px; transition: background-color 700ms ease; }
+/* ------------------------------------------------ 바닥 (커튼처럼 드러나는 밤하늘) */
+footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background: #0d1030; color: #e9ecff;
+  display: grid; grid-template-rows: auto 1fr auto; padding: 40px var(--m) 20px; gap: 32px; }
 .cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; font-size: var(--s-body); }
-.cols h3 { font-family: var(--text); font-size: var(--s-small); font-weight: 600; letter-spacing: 0; margin-bottom: 8px; line-height: 1.4; }
-.cols ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; color: color-mix(in srgb, var(--paper) 80%, var(--ink)); }
-.mark-svg { width: 100%; height: auto; display: block; fill: var(--paper); }
-.legal { font-size: var(--s-small); color: color-mix(in srgb, var(--paper) 72%, var(--ink)); }
+.cols h3 { font-size: var(--s-small); font-weight: 620; letter-spacing: 0; margin-bottom: 8px; line-height: 1.4; }
+.cols ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; color: #c3c8ee; }
+.mark-svg { width: 100%; height: auto; display: block; fill: #e9ecff; }
+.legal { font-size: var(--s-small); color: #aeb4e0; }
 @media (max-width: 760px) { .cols { grid-template-columns: 1fr 1fr; } }
 
 /* ------------------------------------------------ 움직임 */
 @media (prefers-reduced-motion: no-preference) {
   .js [data-rise] { opacity: 0; transform: translateY(22px); animation: rise var(--t-reveal) var(--ease-out) forwards; animation-delay: calc(var(--i, 0) * 80ms); }
-  .js [data-open] { clip-path: inset(0 0 100% 0); animation: open 1100ms var(--ease-in-out) forwards; animation-delay: calc(var(--i, 0) * 80ms + 200ms); }
-  .js .drift { animation: drift 24s ease-in-out infinite alternate; }
+  .js .drift { animation: zoom 24s ease-in-out infinite alternate; }
 }
 @keyframes rise { to { opacity: 1; transform: none; } }
-@keyframes open { to { clip-path: inset(0 0 0 0); } }
-@keyframes drift { from { transform: scale(1); } to { transform: scale(1.06); } }
-.photo-frame { overflow: hidden; }
+@keyframes zoom { from { transform: scale(1); } to { transform: scale(1.06); } }
+
+@media (max-width: 760px) {
+  .hero { min-height: 0; padding: 236px 0 120px; }
+  .mark { width: 76px; top: 76px; }
+  .word { top: 128px; font-size: 16.5vw; }
+  .collage { position: relative; inset: auto; height: 84vw; margin: 28px 16px 0; }
+  .collage figure { left: var(--mx); top: var(--my); width: var(--mw); }
+  .collage .cap, .sheet .facts { display: none; }
+  .sheet { position: relative; left: auto; top: auto; margin: -22vw auto 0; width: calc(100% - 32px); }
+  .corner { font-size: 15px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
   .js .lstep, .leg { opacity: 1; transform: none; }
+  .blob { animation: none; }
 }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="lg-defs"></defs></svg>
 <main>
+  <div class="sky" aria-hidden="true">
+    <i class="blob" style="--w:46vmax;left:-14vmax;top:-12vmax;--a:135deg;--c1:var(--b1);--c2:var(--b2);--d:11s;--tx:8vmax;--ty:6vmax"></i>
+    <i class="blob" style="--w:38vmax;right:-10vmax;top:18vh;--a:200deg;--c1:var(--b3);--c2:var(--b4);--d:13s;--tx:-10vmax;--ty:8vmax"></i>
+    <i class="blob" style="--w:32vmax;left:34%;bottom:-16vmax;--a:60deg;--c1:var(--b2);--c2:var(--b1);--d:9s;--tx:-6vmax;--ty:-10vmax"></i>
+  </div>
   <header class="top">
     <a class="wordmark" href="./app.html">48시간 소개팅</a>
     <div class="status">
@@ -312,70 +407,64 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     </div>
   </header>
 
-  <!-- 입장권 -->
-  <section class="screen" id="gate" aria-labelledby="gate-title">
-    <div class="ticket">
-      <div class="part">
-        <h1 class="hero-title" id="gate-title"><span data-rise style="--i:0">48시간</span><span data-rise style="--i:1">소개팅</span></h1>
-        <p class="lead" data-rise style="--i:2">여행하며 상대를 알아가는 소개팅. 여행 취향 카드 16장을 고르면, 나와 온도가 같은 도시와 그 도시의 사람을 찾아 48시간 여행을 보내 드립니다.</p>
-        <div class="field-row" data-rise style="--i:3">
-          <div><span>출발</span><strong>카드 16장</strong></div>
-          <div><span>도착</span><strong>하와이 · 홍콩 · 삿포로</strong></div>
-          <div><span>체류</span><strong>48시간</strong></div>
+  <!-- 대문: 입장 + 출발 준비 (유리 카드 한 장 안에서 단계가 바뀝니다) -->
+  <section class="hero" id="intro" aria-labelledby="gate-title">
+    <div class="blobs" aria-hidden="true">
+      <i class="blob" style="--w:44vmax;left:-14vmax;top:-12vmax;--a:135deg;--c1:var(--neon);--c2:var(--sunset);--d:11s;--tx:8vmax;--ty:6vmax"></i>
+      <i class="blob" style="--w:36vmax;right:-10vmax;top:10vmax;--a:200deg;--c1:var(--ice);--c2:var(--electric);--d:13s;--tx:-10vmax;--ty:8vmax"></i>
+      <i class="blob" style="--w:30vmax;left:36%;bottom:-18vmax;--a:60deg;--c1:var(--sunset);--c2:var(--neon);--d:9s;--tx:-6vmax;--ty:-10vmax"></i>
+    </div>
+
+    <a class="mark" href="./app.html" aria-label="48시간 소개팅 처음으로">
+      <svg viewBox="0 0 220 150" aria-hidden="true">
+        <defs>
+          <radialGradient id="heart-body" cx="38%" cy="32%" r="80%"><stop offset="0" stop-color="#8e9bff"/><stop offset=".45" stop-color="#3a3cf4"/><stop offset="1" stop-color="#1c1fb8"/></radialGradient>
+          <radialGradient id="heart-shine" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        </defs>
+        <path d="M95 140 C 40 106, 6 78, 6 46 C 6 22, 24 6, 46 6 C 66 6, 82 18, 95 36 C 108 18, 124 6, 144 6 C 166 6, 184 22, 184 46 C 184 78, 150 106, 95 140 Z" fill="url(#heart-body)"/>
+        <ellipse cx="56" cy="40" rx="26" ry="14" fill="url(#heart-shine)" transform="rotate(-24 56 40)"/>
+        <ellipse cx="132" cy="34" rx="12" ry="6" fill="url(#heart-shine)" opacity=".7"/>
+        <circle cx="204" cy="96" r="6" fill="#2b3bff"/>
+      </svg>
+    </a>
+
+    <p class="word" aria-hidden="true"><span class="fill">48 HOURS</span><span class="outline">LOVE TRIP</span></p>
+
+    <div class="collage" id="collage" aria-hidden="true">
+      <figure style="--x:62%;--y:50%;--w:22%;--z:2;--mx:4%;--my:4%;--mw:56%" data-depth="18"><img src="assets/hawaii-waikiki.jpg" width="1600" height="1066" alt=""><figcaption class="cap">Destination / 하와이. 와이키키의 저녁</figcaption></figure>
+      <figure style="--x:87%;--y:44%;--w:10.5%;--z:3;--mx:63%;--my:0%;--mw:32%" data-depth="28"><img src="assets/sapporo-snow.jpg" width="1600" height="2400" alt=""><figcaption class="cap">Destination / 삿포로. 눈 속의 불빛</figcaption></figure>
+      <figure style="--x:44%;--y:52%;--w:12%;--z:2;--mx:6%;--my:42%;--mw:28%" data-depth="12"><img src="assets/hk-neon.jpg" width="1536" height="2048" alt=""><figcaption class="cap">Destination / 홍콩. 네온의 온도</figcaption></figure>
+      <figure style="--x:51%;--y:69%;--w:23%;--z:4;--mx:32%;--my:38%;--mw:58%" data-depth="34"><img src="assets/hawaii-palms.jpg" width="1600" height="1144" alt=""></figure>
+      <figure style="--x:75%;--y:69%;--w:15%;--z:5;--mx:58%;--my:66%;--mw:38%" data-depth="44"><img src="assets/sapporo-tower.jpg" width="1600" height="1200" alt=""></figure>
+      <figure style="--x:31%;--y:78%;--w:17%;--z:3;--mx:2%;--my:72%;--mw:44%" data-depth="22"><img src="assets/hk-tram.jpg" width="1600" height="1066" alt=""></figure>
+    </div>
+
+    <div class="sheet glass" id="sheet" data-glass data-bezel="30" data-scale="80">
+      <!-- 1단계: 소개 → 탑승 수속 -->
+      <div id="gate">
+        <div id="gate-hello" style="display:grid;gap:22px">
+          <h1 id="gate-title">48시간 소개팅</h1>
+          <p class="lede">여행하며 상대를 알아가는 소개팅. 여행 장면 16장 중 나다운 쪽을 고르면, 나와 온도가 같은 도시에서 48시간을 함께 보낼 사람을 찾아 드립니다.</p>
+          <p class="facts"><span>16<small>여행 장면 카드</small></span><span>3<small>도시, 하와이 · 홍콩 · 삿포로</small></span><span>48h<small>함께 떠나는 여행</small></span></p>
+          <button type="button" class="glass glass-btn go" id="start-btn" data-glass data-bezel="16" data-scale="40">운명의 여정 떠나기 <span class="arr" aria-hidden="true">→</span></button>
+          <p class="fine">학번과 이름은 정원(30명) 확인용으로만 저장합니다.</p>
         </div>
-        <a class="btn phone-only" href="#sid" data-rise style="--i:4">탑승 수속하기</a>
-        <div class="plates">
-          <figure><div class="photo-frame" data-open style="--i:4"><img src="assets/hawaii-palms.jpg" width="1600" height="1144" alt="하와이 해변의 야자수 너머로 지는 주황빛 석양"></div><figcaption>하와이, 뜨거운 사람</figcaption></figure>
-          <figure><div class="photo-frame" data-open style="--i:5"><img src="assets/hk-neon.jpg" width="1536" height="2048" alt="홍콩 삼수이포 밤거리의 붉고 푸른 네온 간판"></div><figcaption>홍콩, 따뜻하고 시린 사람</figcaption></figure>
-          <figure><div class="photo-frame" data-open style="--i:6"><img src="assets/sapporo-snow.jpg" width="1600" height="2400" alt="눈이 쌓인 삿포로 밤거리와 따뜻한 가로등 불빛"></div><figcaption>삿포로, 차갑고 따뜻한 사람</figcaption></figure>
-        </div>
-      </div>
-      <div class="perf" aria-hidden="true"></div>
-      <div class="part stub" data-rise style="--i:4">
-        <h2 style="font-size:var(--s-lead)">탑승 수속</h2>
-        <p class="notice">학번과 이름은 <b>정원(30명) 확인용</b>으로만 저장하며, 이 페이지나 GitHub 어디에도 공개되지 않습니다. 다른 가입자의 정보는 누구도 볼 수 없고, 과제가 끝나면 삭제합니다. 이미 가입했다면 같은 학번·이름으로 다시 들어오면 됩니다.</p>
-        <form id="gate-form" novalidate style="display:grid;gap:16px">
+        <form id="gate-form" novalidate hidden style="display:grid;gap:16px">
+          <button type="button" class="back" id="gate-back">처음으로</button>
+          <h2>탑승 수속</h2>
+          <p class="fine">학번과 이름은 <b>정원(30명) 확인용</b>으로만 저장하며, 이 페이지나 GitHub 어디에도 공개되지 않습니다. 다른 가입자의 정보는 누구도 볼 수 없고, 과제가 끝나면 삭제합니다. 이미 가입했다면 같은 학번·이름으로 다시 들어오면 됩니다.</p>
           <label class="field" for="sid">학번 <input type="text" id="sid" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="숫자 6~12자리"></label>
           <label class="field" for="sname">이름 <input type="text" id="sname" autocomplete="off" maxlength="20" placeholder="2~20자"></label>
           <label class="field" for="scode" id="scode-wrap" hidden>입장 코드 <input type="text" id="scode" autocomplete="off" maxlength="40" placeholder="수업에서 안내한 코드"></label>
           <label class="check" for="consent"><input type="checkbox" id="consent"> 학번·이름을 정원 확인용으로 저장하는 데 동의합니다.</label>
           <p class="error" id="gate-error" role="alert"></p>
-          <button type="submit" class="btn" id="gate-btn">탑승권 받기</button>
+          <button type="submit" class="glass glass-btn go" id="gate-btn" data-glass data-bezel="16" data-scale="40">탑승 수속 완료 <span class="arr" aria-hidden="true">→</span></button>
         </form>
       </div>
-    </div>
 
-    <div class="how">
-      <div>
-        <h2 data-rise style="--i:0">48시간의 일정표</h2>
-        <p data-rise style="--i:1">조건표를 채우는 대신, 여행에서 실제로 부딪히는 장면을 고릅니다. 고른 답은 점수표가 되고, 그 성향은 여행 이벤트에서 다시 시험받습니다. 마지막에는 모든 계산을 그대로 보여 드립니다.</p>
-      </div>
-      <div class="how-slip" id="how-slip" data-rise style="--i:2">
-        <h3>출발 전</h3>
-        <p class="row"><span>여행 장면 카드 16장 고르기</span><i aria-hidden="true"></i><span>한 장에 3초</span></p>
-        <p class="row"><span>여행 온도로 목적지 발권</span><i aria-hidden="true"></i><span>0~12점</span></p>
-        <h3>공항</h3>
-        <p class="row"><span>같은 도시 사람 중 성향이 가까운 3명</span><i aria-hidden="true"></i><span>성향 벡터</span></p>
-        <p class="row"><span>한 명을 골라 탑승</span><i aria-hidden="true"></i><span>직접 선택</span></p>
-        <h3>48시간</h3>
-        <p class="row"><span>12시간마다 이벤트 하나, 모두 넷</span><i aria-hidden="true"></i><span>호감도 변화</span></p>
-        <p class="row"><span>도착 후 계산 과정 공개</span><i aria-hidden="true"></i><span>처음부터 재생</span></p>
-        <p class="row total"><span>손에 남는 것: 목적지, 동행, 그리고 그 이유</span><i aria-hidden="true"></i><span>48시간</span></p>
-      </div>
-    </div>
-
-    <div class="band">
-      <figure><div class="photo-frame" data-open><img class="drift" src="assets/hawaii-waikiki.jpg" width="1600" height="1066" alt="구름 낀 와이키키 바다 위로 지는 해와 방파제 위의 사람들" loading="lazy"></div><figcaption>와이키키의 저녁</figcaption></figure>
-      <figure><div class="photo-frame" data-open style="--i:1"><img class="drift" src="assets/hk-tram.jpg" width="1600" height="1066" alt="불을 밝힌 채 밤거리를 달리는 홍콩 2층 트램" loading="lazy"></div><figcaption>홍콩 트램의 밤</figcaption></figure>
-      <figure><div class="photo-frame" data-open style="--i:2"><img class="drift" src="assets/sapporo-tower.jpg" width="1600" height="1200" alt="눈 덮인 나뭇가지 사이로 주황빛을 밝힌 삿포로 TV 타워" loading="lazy"></div><figcaption>삿포로 TV 타워의 겨울</figcaption></figure>
-    </div>
-  </section>
-
-  <!-- 출발 준비 -->
-  <section class="screen" id="prep" hidden aria-labelledby="prep-title">
-    <div class="ticket">
-      <div class="part">
-        <h2 id="prep-title" style="font-size:var(--s-head)">누구와 떠날까요</h2>
+      <!-- 2단계: 누구와 · 내 나이 → 이상형 월드컵 시작 -->
+      <div id="prep" hidden style="display:grid;gap:20px">
+        <h2 id="prep-title">누구와 떠날까요</h2>
         <div class="pair" role="radiogroup" aria-label="함께 떠날 상대">
           <label class="opt"><input type="radio" name="gender" value="여" checked><span>여성과 떠나고 싶어요</span></label>
           <label class="opt"><input type="radio" name="gender" value="남"><span>남성과 떠나고 싶어요</span></label>
@@ -383,42 +472,44 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
         <div style="display:grid;gap:10px">
           <label for="age" style="font-size:var(--s-small);font-weight:600">내 나이</label>
           <div class="stepper"><button type="button" id="age-dn" aria-label="한 살 내리기">−</button><input type="number" id="age" min="20" max="45" value="27" inputmode="numeric"><button type="button" id="age-up" aria-label="한 살 올리기">+</button></div>
-          <p class="notice">또래를 원하는지는 카드에서 따로 묻습니다. 나이는 그 기준점으로만 씁니다.</p>
+          <p class="fine">또래를 원하는지는 카드에서 따로 묻습니다. 나이는 그 기준점으로만 씁니다.</p>
         </div>
-      </div>
-      <div class="perf" aria-hidden="true"></div>
-      <div class="part stub">
-        <p style="font-size:var(--s-body)">정답은 없습니다. 두 장면 중 더 나다운 쪽을 고르세요. 한 장에 3초면 충분합니다.</p>
         <p class="error" id="prep-error" role="alert"></p>
-        <button type="button" class="btn" id="prep-btn">카드 고르기</button>
+        <button type="button" class="glass glass-btn go" id="prep-btn" data-glass data-bezel="16" data-scale="40">이상형 월드컵 시작 <span class="arr" aria-hidden="true">→</span></button>
       </div>
     </div>
+
+    <p class="corner l"><span id="codes">HNL · HKG · CTS</span><small>하와이 · 홍콩 · 삿포로</small></p>
+    <p class="corner r">16 CARDS · 48H<small>한 장에 3초면 충분합니다</small></p>
   </section>
 
-  <!-- 카드 16장 -->
+  <!-- 카드 16장: 타로카드 두 장이 덱에서 날아와 뒤집힙니다 -->
   <section class="screen" id="cards" hidden aria-labelledby="card-title">
     <div class="deck">
       <div class="deck-head">
+        <p id="card-count" class="num"></p>
+        <h2 id="card-title" tabindex="-1"></h2>
         <div class="dots" id="dots" aria-hidden="true"></div>
-        <p class="lean" id="lean" aria-live="polite"></p>
       </div>
-      <article class="card" id="card">
-        <div class="card-scene">
-          <p id="card-count" class="num"></p>
-          <h2 id="card-title"></h2>
-        </div>
-        <div class="choices">
-          <button type="button" class="choice" id="choice-a"></button>
-          <div class="or" aria-hidden="true"><span>또는</span></div>
-          <button type="button" class="choice" id="choice-b"></button>
-        </div>
-      </article>
+      <div class="spread" id="card">
+        <button type="button" class="tarot" id="choice-a"><span class="t-inner"><span class="t-back" aria-hidden="true"><span><b>48</b><small>HOURS</small></span></span><span class="t-face"><span class="t-num" id="num-a"></span><span class="t-text" id="text-a"></span><span class="t-foot">이쪽이 더 나답다</span></span></span></button>
+        <span class="or" aria-hidden="true">또는</span>
+        <button type="button" class="tarot" id="choice-b"><span class="t-inner"><span class="t-back" aria-hidden="true"><span><b>48</b><small>HOURS</small></span></span><span class="t-face"><span class="t-num" id="num-b"></span><span class="t-text" id="text-b"></span><span class="t-foot">이쪽이 더 나답다</span></span></span></button>
+      </div>
       <div class="deck-foot">
         <button type="button" class="linkish" id="back-btn">이전 카드</button>
         <span>고른 답은 마지막에 모두 공개됩니다</span>
       </div>
     </div>
   </section>
+
+  <!-- 도시 공개 (16번째 카드 → 탑승권) -->
+  <div class="reveal-stage" id="reveal-stage" hidden aria-live="polite">
+    <div class="bpass glass" id="bpass">
+      <div class="bp-main"><small>BOARDING PASS · 인천 ICN →</small><div class="bp-code" id="bp-code">???</div><div class="bp-city" id="bp-city">목적지 발권 중</div></div>
+      <div class="bp-stub" aria-hidden="true"><small>FLIGHT</small><b>48H</b><small>GATE 16</small></div>
+    </div>
+  </div>
 
   <!-- 목적지 + 후보 -->
   <section class="screen" id="result" hidden>
@@ -428,16 +519,14 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
         <figcaption id="city-cap"></figcaption>
       </figure>
       <div class="dest">
-        <div class="ticket" style="grid-template-columns:1fr">
-          <div class="part">
-            <p id="dest-from" class="muted" style="font-size:var(--s-small)"></p>
+        <div class="panel glass" data-glass data-bezel="26" data-scale="60">
+            <p id="dest-from" class="dest-from"></p>
             <h2 class="dest-name" id="dest-name" tabindex="-1"></h2>
             <p class="lead" id="dest-mood"></p>
             <div class="temp">
               <div class="temp-track" aria-hidden="true"><i class="temp-fill" id="temp-fill"></i></div>
               <div class="temp-scale"><span>0 차가움</span><span id="temp-val" class="num"></span><span>12 뜨거움</span></div>
             </div>
-          </div>
         </div>
         <div class="passengers">
           <h2>함께 탈 사람을 고르세요</h2>
@@ -454,9 +543,24 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
       <div class="trip-side">
         <h2 id="trip-title" tabindex="-1"></h2>
         <p id="trip-note"></p>
-        <figure><div class="photo-frame"><img id="trip-img" src="data:," width="1600" height="1066" alt="" loading="lazy"></div><figcaption id="trip-cap"></figcaption></figure>
+        <figure style="margin:0">
+          <div class="map glass" id="map">
+            <img class="map-photo" id="trip-img" src="data:," width="1600" height="1066" alt="" loading="lazy">
+            <svg viewBox="0 0 600 420" role="img" aria-label="48시간 이동 경로: 공항에서 출발해 12시간마다 한 곳씩, 모두 네 곳을 들릅니다">
+              <path class="sea" d="M600 250 C 520 270, 470 330, 470 420 L 600 420 Z"/>
+              <path class="street" d="M0 120 C 150 140, 260 90, 600 150 M40 0 C 90 160, 70 300, 130 420 M0 300 C 200 280, 330 380, 470 360 M300 0 C 280 120, 360 230, 330 420 M420 0 C 450 100, 520 160, 600 180"/>
+              <path class="route" id="route" d=""/>
+              <g id="done"></g>
+              <g id="pins"></g>
+              <g class="walker them" id="w-them"><circle r="16" cx="-10" cy="9"/><text id="w-them-t" x="-10" y="9">상</text></g>
+              <g class="walker me" id="w-me"><circle r="16"/><text>나</text></g>
+            </svg>
+            <div class="bubble" id="bubble" aria-live="polite"><b id="bub-t"></b><span id="bub-l"></span><span class="bd" id="bub-d"></span></div>
+          </div>
+          <figcaption class="map-cap" id="trip-cap"></figcaption>
+        </figure>
       </div>
-      <div class="slip" id="slip">
+      <div class="slip glass" id="slip" data-glass data-bezel="26" data-scale="60">
         <div class="meters">
           <div class="meter"><span>나 → 상대</span><span class="bar"><i id="m-me"></i><s id="m-line-me"></s></span><b id="v-me">0</b></div>
           <div class="meter"><span id="them-label">상대 → 나</span><span class="bar"><i class="them" id="m-them"></i><s id="m-line-them"></s></span><b id="v-them">0</b></div>
@@ -495,7 +599,7 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
 
 <footer>
   <div class="cols">
-    <div><h3>48시간 소개팅</h3><ul><li>모든 프로필은 수업 실습용 가상 인물입니다.</li><li>점수는 정해 둔 규칙으로 매긴 궁합 점수이며, 실제로 만날 확률이 아닙니다.</li></ul></div>
+    <div><h3>48시간 소개팅</h3><ul><li>모든 프로필은 수업 실습용 가상 인물입니다.</li><li>후보 얼굴은 Gemini로 만든 AI 가상 얼굴이며, 추천 순위 자리(A·B·C)마다 고정돼 있습니다.</li><li>점수는 정해 둔 규칙으로 매긴 궁합 점수이며, 실제로 만날 확률이 아닙니다.</li></ul></div>
     <div><h3>더 보기</h3><ul><li><a href="./">한 쌍 분석 시각화 M06 × W22</a></li><li><a href="https://github.com/yufe9/dating-match">코드 github.com/yufe9/dating-match</a></li><li><a href="https://github.com/yufe9/dating-match#readme">콘솔 버전 match.py</a></li></ul></div>
     <div><h3>사진 출처</h3><ul>
       <li><a href="https://commons.wikimedia.org/w/index.php?curid=60543911">Hawaii at Sunset with Palm Trees</a>, Nan Palmero, CC BY 2.0</li>
@@ -515,6 +619,7 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
   </div>
 </footer>
 
+<script src="vendor/anime.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="app-logic.js"></script>
 <script>
@@ -566,9 +671,12 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
   function later(fn, ms) { timers.push(setTimeout(fn, REDUCED ? 0 : ms)); }
   function stopTimers() { timers.forEach(clearTimeout); timers = []; }
 
-  function show(id) {  // 결과 쪽 화면은 아래로 쌓입니다: 목적지 → 여행 → 로직
+  function show(id) {  // 결과 쪽 화면은 아래로 쌓입니다: 목적지 → 여행 → 로직. 입장·출발 준비는 대문 유리 카드 안의 단계입니다
     var stack = { result: ["result"], trip: ["result", "trip"], logic: ["result", "trip", "logic"] }[id] || [id];
     ["gate", "prep", "cards", "result", "trip", "logic"].forEach(function (s) { $(s).hidden = stack.indexOf(s) === -1; });
+    var intro = id === "gate" || id === "prep";
+    $("intro").hidden = !intro;
+    document.body.classList.toggle("at-intro", intro);
   }
   function setCity(id) {
     if (id) document.documentElement.setAttribute("data-city", id);
@@ -638,7 +746,7 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     if (prep) { st.gender = prep.gender === "남" ? "남" : "여"; st.age = clampAge(prep.age); }
     document.querySelectorAll("input[name=gender]").forEach(function (x) { x.checked = x.value === st.gender; });
     $("age").value = st.age;
-    show("prep");
+    swapStep($("gate"), $("prep"), function () { show("prep"); });
   }
 
   $("gate-form").addEventListener("submit", function (ev) {
@@ -667,6 +775,150 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     location.reload();
   });
 
+
+  // ------------------------------------------------------------ 대문: Liquid Glass + Anime.js
+  var A = window.anime && window.anime.animate ? window.anime : null;  // 번들을 못 불러와도 화면은 그대로 동작합니다
+
+  // 유리 카드 안 단계 전환: 지금 단계를 살짝 올리며 지우고, 다음 단계를 아래에서 올립니다
+  function swapStep(from, to, done) {
+    if (!A || REDUCED || from.hidden) { done(); if (to.id === "gate-form") to.hidden = false; return; }
+    A.animate(from, { opacity: [1, 0], y: [0, -10], duration: 220, ease: "out(3)", onComplete: function () {
+      from.style.opacity = ""; from.style.transform = "";
+      done();
+      if (to.id === "gate-form") to.hidden = false;
+      A.animate(to, { opacity: [0, 1], y: [14, 0], duration: 420, ease: "out(4)" });
+      var first = to.querySelector("input, button:not(.back)");
+      if (first) first.focus({ preventScroll: true });
+    } });
+  }
+  $("start-btn").addEventListener("click", function () {
+    var member = store(MEMBER_KEY);
+    if (member && member.live === live && data) { enter(member); return; }
+    swapStep($("gate-hello"), $("gate-form"), function () { $("gate-hello").hidden = true; });
+    if (!A || REDUCED) $("sid").focus();
+  });
+  $("gate-back").addEventListener("click", function () {
+    swapStep($("gate-form"), $("gate-hello"), function () { $("gate-form").hidden = true; $("gate-hello").hidden = false; });
+  });
+
+  // 월드컵 시작: 사진 더미가 위로 흩어지며 사라진 뒤 카드 화면으로
+  var leaving = false;
+  function leaveIntro(next) {
+    if (leaving) return;
+    if (!A || REDUCED) { next(); return; }
+    leaving = true;
+    var figs = document.querySelectorAll("#collage figure");
+    A.animate(figs, { y: "-=140", opacity: 0, rotate: A.stagger([-10, 10]), duration: 520, delay: A.stagger(40), ease: "in(2)" });
+    A.animate("#sheet", { opacity: 0, scale: .96, duration: 360, delay: 140, ease: "out(2)", onComplete: function () {
+      figs.forEach(function (f) { f.style.opacity = ""; f.style.transform = ""; });
+      $("sheet").style.opacity = ""; $("sheet").style.transform = "";
+      leaving = false;
+      next();
+    } });
+  }
+
+  // 첫 등장: 사진이 흩어져 날아와 쌓이고, 큰 글자가 한 글자씩 솟고, 유리 카드가 맺힙니다
+  function introIn() {
+    if (!A || REDUCED) return;
+    var tl = A.createTimeline({ defaults: { ease: "out(4)" } });
+    tl.add("#collage figure", { y: [{ from: 260 }], rotate: { from: A.stagger([-18, 18]) }, opacity: { from: 0 }, duration: 1100, delay: A.stagger(90) })
+      .add(".blob", { opacity: { from: 0 }, scale: { from: .6 }, duration: 1600 }, 0)
+      .add("#sheet", { opacity: { from: 0 }, scale: { from: .94 }, y: { from: 24 }, duration: 900 }, 260)
+      .add(".mark", { scale: { from: .4 }, rotate: { from: -20 }, opacity: { from: 0 }, duration: 900, ease: A.spring({ bounce: .5 }) }, 120);
+    try {
+      var words = document.querySelectorAll(".word span");
+      words.forEach(function (w, i) {
+        var chars = A.splitText(w, { chars: true }).chars;
+        tl.add(chars, { y: { from: "60%" }, opacity: { from: 0 }, duration: 700, delay: A.stagger(28) }, 200 + i * 180);
+      });
+      A.animate("#codes", { innerHTML: A.scrambleText({ duration: 1400 }), delay: 900 });
+    } catch (e) { /* 글자 쪼개기를 못 해도 글자는 그대로 보입니다 */ }
+  }
+
+  // 포인터를 따라 사진이 깊이만큼 움직입니다 (createAnimatable: 매번 새 애니메이션을 만들지 않고 값만 바꿈)
+  function parallax() {
+    if (!A || REDUCED || !window.matchMedia("(pointer: fine)").matches) return;
+    var figs = Array.prototype.map.call(document.querySelectorAll("#collage figure"), function (f) {
+      return { depth: Number(f.getAttribute("data-depth")) || 10, a: A.createAnimatable(f, { x: 900, y: 900, ease: "out(3)" }) };
+    });
+    window.addEventListener("pointermove", function (e) {
+      if ($("intro").hidden) return;
+      var dx = e.clientX / window.innerWidth - .5, dy = e.clientY / window.innerHeight - .5;
+      figs.forEach(function (f) { f.a.x(-dx * f.depth); f.a.y(-dy * f.depth); });
+    }, { passive: true });
+  }
+
+  // 굴절 유리 (아티팩트 Liquid Glass Lab 과 같은 방식): 볼록한 테두리 변위 지도를 캔버스로 그려 SVG 필터에 넣습니다.
+  // shortcut: SVG backdrop 필터는 Chromium 만 그립니다. 다른 브라우저는 CSS 블러로 대체되며, 기능 검사가 생기면 UA 판별을 바꿉니다
+  var glasses = Array.prototype.slice.call(document.querySelectorAll("[data-glass]"));
+  var canRefract = /Chrome\//.test(navigator.userAgent) && !REDUCED;
+  var svgNS = "http://www.w3.org/2000/svg", defs = $("lg-defs");
+  function bezelMap(w, h, r, b) {
+    var c = document.createElement("canvas"); c.width = w; c.height = h;
+    var ctx = c.getContext("2d"), img = ctx.createImageData(w, h), d = img.data, hw = w / 2, hh = h / 2;
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) {
+      var px = x + .5 - hw, py = y + .5 - hh, qx = Math.abs(px) - (hw - r), qy = Math.abs(py) - (hh - r);
+      var depth = -(Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r), nx = 0, ny = 0, m = 0;
+      if (depth > 0 && depth < b) {
+        var t = 1 - depth / b; m = t * t;
+        if (qx > 0 && qy > 0) { var l = Math.hypot(qx, qy); nx = qx / l; ny = qy / l; } else if (qx > qy) nx = 1; else ny = 1;
+        nx *= Math.sign(px) || 1; ny *= Math.sign(py) || 1;
+      }
+      var i = (y * w + x) * 4;
+      d[i] = 128 - nx * m * 127; d[i + 1] = 128 - ny * m * 127; d[i + 2] = 128; d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
+  function buildGlass(el, i) {
+    var w = el.offsetWidth, h = el.offsetHeight;
+    if (!w || !h) return;
+    var r = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, w / 2, h / 2);
+    if (!el._f) {
+      var f = document.createElementNS(svgNS, "filter");
+      f.id = "lg-" + i;
+      f.setAttribute("filterUnits", "userSpaceOnUse");
+      f.setAttribute("color-interpolation-filters", "sRGB");
+      f.innerHTML = '<feTurbulence type="fractalNoise" baseFrequency="0.008 0.011" numOctaves="2" seed="4" result="noise"/>' +
+        '<feGaussianBlur in="noise" stdDeviation="3" result="soft"/><feImage x="0" y="0" preserveAspectRatio="none" result="bezel"/>' +
+        '<feComposite in="bezel" in2="soft" operator="arithmetic" k1="0" k2="1" k3="0.22" k4="-0.11" result="map"/>' +
+        '<feDisplacementMap in="SourceGraphic" in2="map" scale="' + (Number(el.getAttribute("data-scale")) || 60) + '" xChannelSelector="R" yChannelSelector="G"/>';
+      defs.appendChild(f);
+      el._f = f;
+    }
+    [["x", 0], ["y", 0], ["width", w], ["height", h]].forEach(function (kv) { el._f.setAttribute(kv[0], kv[1]); });
+    var fi = el._f.querySelector("feImage");
+    fi.setAttribute("width", w); fi.setAttribute("height", h);
+    fi.setAttribute("href", bezelMap(w, h, r, Number(el.getAttribute("data-bezel")) || 20));
+    var v = "blur(1.5px) url(#" + el._f.id + ") saturate(1.7) brightness(1.05)";
+    el.style.backdropFilter = v; el.style.webkitBackdropFilter = v;
+  }
+  if (canRefract && window.ResizeObserver) {
+    var ro = new ResizeObserver(function (es) { es.forEach(function (e) { buildGlass(e.target, glasses.indexOf(e.target)); }); });
+    glasses.forEach(function (g) { ro.observe(g); });
+  }
+  // 유리 표면 반사광이 포인터를 천천히 따라옵니다
+  (function () {
+    var target = { x: 0, y: 0 }, cur = { x: 0, y: 0 }, raf = 0, seen = false;
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function tick() {
+      var k = REDUCED ? 1 : .1;
+      cur.x += (target.x - cur.x) * k; cur.y += (target.y - cur.y) * k;
+      glasses.forEach(function (g) {
+        var r = g.getBoundingClientRect();
+        if (!r.width) return;
+        g.style.setProperty("--mx", clamp((cur.x - r.left) / r.width * 100, -25, 125).toFixed(1) + "%");
+        g.style.setProperty("--my", clamp((cur.y - r.top) / r.height * 100, -25, 125).toFixed(1) + "%");
+      });
+      raf = Math.abs(target.x - cur.x) + Math.abs(target.y - cur.y) > .5 ? requestAnimationFrame(tick) : 0;
+    }
+    window.addEventListener("pointermove", function (e) {
+      target.x = e.clientX; target.y = e.clientY;
+      if (!seen) { seen = true; cur.x = window.innerWidth * .3; cur.y = 0; }
+      if (!raf) raf = requestAnimationFrame(tick);
+    }, { passive: true });
+  })();
+
   // ------------------------------------------------------------ 출발 준비
   function clampAge(v) { return Math.min(45, Math.max(20, Math.round(Number(v) || 27))); }
   $("age-dn").addEventListener("click", function () { $("age").value = clampAge(Number($("age").value) - 1); });
@@ -678,12 +930,16 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     st.gender = document.querySelector("input[name=gender]:checked").value;
     st.age = Math.round(a);
     store(PREP_KEY, { gender: st.gender, age: st.age });
-    startCards();
+    leaveIntro(startCards);
   });
 
-  // ------------------------------------------------------------ 카드
+  // ------------------------------------------------------------ 카드: 타로카드 두 장 (덱에서 날아와 한 장씩 뒤집힘)
   var dots = $("dots");
   M.CARDS.forEach(function () { dots.appendChild(el("i")); });
+  var ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"];
+  var tarots = [$("choice-a"), $("choice-b")];
+  var inners = tarots.map(function (t) { return t.querySelector(".t-inner"); });
+  var busy = false;
 
   function startCards() {
     stopTimers();
@@ -691,8 +947,9 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     setCity(null);
     show("cards");
     renderCard();
+    deal();
     window.scrollTo(0, 0);
-    $("choice-a").focus({ preventScroll: true });
+    $("card-title").focus({ preventScroll: true });  // 카드에 초점을 두면 A 가 미리 고른 것처럼 보여 제목으로
   }
   function leanCity() {  // 지금까지 고른 답으로 기운 도시 (온도 카드를 아직 안 골랐으면 없음)
     var me = M.fromAnswers(st.answers.slice(0, st.i), st.gender, st.age).me;
@@ -701,46 +958,81 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
   }
   function renderCard() {
     var c = M.CARDS[st.i];
-    $("card-count").textContent = M.CARDS.length + "장 중 " + (st.i + 1) + "번째 장면";
+    $("card-count").textContent = ROMAN[st.i] + " / " + ROMAN[M.CARDS.length - 1];
     $("card-title").textContent = c.scene;
-    $("choice-a").textContent = c.a.text;
-    $("choice-b").textContent = c.b.text;
-    $("choice-a").classList.remove("picked");
-    $("choice-b").classList.remove("picked");
+    ["a", "b"].forEach(function (side, k) {
+      $("text-" + side).textContent = c[side].text;
+      $("num-" + side).textContent = ROMAN[st.i] + " · " + side.toUpperCase();
+      tarots[k].classList.remove("picked");
+      tarots[k].setAttribute("aria-label", c[side].text);
+    });
     Array.prototype.forEach.call(dots.children, function (d, k) { d.className = k < st.i ? "done" : k === st.i ? "now" : ""; });
     $("back-btn").style.visibility = st.i === 0 ? "hidden" : "visible";
     var lc = leanCity();
-    setCity(lc && lc.id);
-    $("lean").textContent = "";
-    if (lc) $("lean").append("지금 온도는 ", el("b", { text: lc.name }), " 쪽");
+    setCity(lc && lc.id);  // 지금 기운 도시는 글로 알리지 않고 하늘색으로만
   }
-  var busy = false;
+  // 덱에서 두 장이 아래에서 날아오고, 왼쪽부터 한 장씩 뒤집힙니다
+  function deal() {
+    if (!A || REDUCED) { busy = false; return; }
+    busy = true;
+    A.utils.set(tarots, { y: Math.round(window.innerHeight * .75), rotate: A.stagger([-16, 16]), scale: .92, opacity: 0 });
+    A.utils.set(inners, { rotateY: 180 });
+    A.createTimeline({ onComplete: function () { busy = false; } })
+      .add(tarots, { y: 0, rotate: A.stagger([-3, 3]), scale: 1, opacity: 1, duration: 720, delay: A.stagger(120), ease: "out(4)" })
+      .add(inners, { rotateY: 0, duration: 780, delay: A.stagger(260), ease: "inOut(3)" }, "-=260")
+      .add(tarots, { rotate: 0, duration: 400, ease: "out(3)" }, "-=300");
+  }
   function choose(side) {
-    if (busy) return;
+    if (busy || $("cards").hidden) return;  // 카드가 날아오는 중이거나 대문이 사라지는 중의 클릭은 무시 (답 순서가 밀리지 않게)
     busy = true;
     st.answers[st.i] = side;
     st.answers.length = st.i + 1;
-    $("choice-" + side).classList.add("picked");
-    var card = $("card"), dx = side === "a" ? 28 : -28;
-    var out = REDUCED || !card.animate ? null : card.animate(
-      [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(" + -dx + "px)" }],
-      { duration: 200, delay: 140, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" });
+    var pick = side === "a" ? 0 : 1, other = 1 - pick;
+    tarots[pick].classList.add("picked");
     var next = function () {
       st.i += 1;
       busy = false;
-      if (st.i >= M.CARDS.length) { if (out) out.cancel(); finish(); return; }
+      if (st.i >= M.CARDS.length) { finish(); return; }
       renderCard();
-      if (out) {
-        out.cancel();
-        card.animate([{ opacity: 0, transform: "translateX(" + dx + "px)" }, { opacity: 1, transform: "none" }],
-          { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
-      }
+      deal();
     };
-    if (out) out.onfinish = next; else next();
+    if (!A || REDUCED) { next(); return; }
+    if (st.i === M.CARDS.length - 1) { revealCity(tarots[pick], tarots[other], next); return; }
+    // 고른 카드는 살짝 떠오르고, 남은 카드는 떨어져 사라진 뒤, 고른 카드가 위로 날아갑니다
+    A.createTimeline({ onComplete: next })
+      .add(tarots[pick], { y: -18, scale: 1.06, duration: 260, ease: "out(3)" })
+      .add(tarots[other], { y: 90, rotate: other ? 16 : -16, opacity: 0, duration: 420, ease: "in(2)" }, 0)
+      .add(tarots[pick], { y: -Math.round(window.innerHeight * .6), rotate: pick ? 10 : -10, opacity: 0, duration: 480, ease: "in(3)" }, 460);
+  }
+  // 16번째 카드: 남은 카드는 떨어지고, 고른 카드는 돌며 사라지고, 탑승권이 나타나 도착지가 전광판처럼 굴러 멈춥니다.
+  // 멈추는 순간 하늘이 그 도시 색으로 바뀌고, 탑승권이 올라가며 결과 화면으로 넘어갑니다
+  function revealCity(picked, other, done) {
+    var r = M.fromAnswers(st.answers, st.gender, st.age), city = M.candidates(data, r.me, r.pref).city;
+    var stage = $("reveal-stage"), pass = $("bpass");
+    $("bp-code").textContent = "???";
+    $("bp-city").textContent = "목적지 발권 중";
+    stage.hidden = false;
+    A.utils.set(pass, { opacity: 0, scale: .6, rotateY: -90, y: 0 });
+    A.createTimeline({ onComplete: function () {
+      stage.hidden = true;
+      A.utils.set(pass, { opacity: 0, y: 0 });
+      done();
+    } })
+      .add(other, { y: 90, rotate: other === tarots[1] ? 16 : -16, opacity: 0, duration: 420, ease: "in(2)" }, 0)
+      .add(picked, { y: -30, scale: 1.05, duration: 380, ease: "out(3)" }, 0)
+      .add(picked, { rotateY: 540, scaleX: 2.4, scaleY: .7, opacity: 0, duration: 900, ease: "inOut(3)" }, 420)
+      .add(pass, { opacity: 1, scale: 1, rotateY: 0, duration: 700, ease: "out(4)" }, 950)
+      .call(function () {
+        A.animate("#bp-code", { innerHTML: A.scrambleText({ text: city.code, duration: 1300, chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ" }) });
+        A.animate("#bp-city", { innerHTML: A.scrambleText({ text: city.name + " · 48시간", duration: 1300 }) });
+      }, 1650)
+      .call(function () { setCity(city.id); }, 3000)
+      .add(pass, { scale: [1, 1.04, 1], duration: 500, ease: "out(3)" }, 3000)
+      .add(pass, { y: -60, opacity: 0, duration: 600, ease: "in(2)" }, 4100);
   }
   $("choice-a").addEventListener("click", function () { choose("a"); });
   $("choice-b").addEventListener("click", function () { choose("b"); });
-  $("back-btn").addEventListener("click", function () { if (st.i > 0 && !busy) { st.i -= 1; renderCard(); } });
+  $("back-btn").addEventListener("click", function () { if (st.i > 0 && !busy) { st.i -= 1; renderCard(); deal(); } });
 
   // ------------------------------------------------------------ 목적지 + 후보
   function finish() {
@@ -779,16 +1071,17 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
       var shared = st.me.interests.filter(function (x) { return theirs.indexOf(x) !== -1; });
       var btn = el("button", { type: "button", class: "btn", text: "이 사람과 떠나기" });
       btn.addEventListener("click", function () { pick(row); });
-      list.appendChild(el("article", { class: "pass" + (k === 0 ? " best" : ""), "data-rise": "", style: "--i:" + (k + 2) },
+      var face = "assets/avatar-" + (st.gender === "남" ? "m" : "f") + "-" + "abc".charAt(k) + ".jpg";
+      list.appendChild(el("article", { class: "pass glass" + (k === 0 ? " best" : ""), "data-rise": "", style: "--i:" + (k + 2) },
+        el("figure", { class: "ava" }, el("img", { src: face, width: "640", height: "640", alt: p["이름"] + " 님 자리의 AI 가상 얼굴" }), el("figcaption", { text: "AI 가상 얼굴" })),
         el("div", { class: "part" },
           el("p", { class: "who", text: (k === 0 ? "궁합 1위 · " : "") + p["나이"] + "세 · " + p["직업군"] + " · " + p["거주_시"] + " " + p["거주_구"] }),
           el("h3", { text: p["이름"] }),
-          el("p", { class: "intro", text: p["자기소개"] }),
+          el("p", { class: "bio", text: p["자기소개"] }),
           el("p", { class: "why", text: shared.length ? "같이 고른 취향: " + shared.join(" · ") : "겹치는 관심사는 없지만, 생활 리듬이 비슷합니다" }),
           el("p", { class: "nums" },
             el("span", null, "성향 유사도 ", el("b", { class: "num", text: row.sim.toFixed(2) })),
             el("span", null, "궁합 점수 ", el("b", { class: "num", text: fmt(row.total) }), " /100"))),
-        el("div", { class: "perf", "aria-hidden": "true" }),
         el("div", { class: "go" }, btn)));
     });
   }
@@ -797,13 +1090,6 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
   var KIND = { "같음": "잘 맞았다", "한칸": "조금 어긋났다", "두칸": "부딪혔다", "운": "운에 맡겼다" };
   var TEST = { "주말스타일": "쉬는 방식", "음주": "술자리", "운동": "아침 리듬", "연락빈도": "함께하는 시간", "반려동물": "동물",
     "가치관": "결혼·자녀 계획", "관심사": "관심사", "MBTI J/P": "계획파·즉흥파", "운": "운" };
-  function zigzag(elm) {  // 일정표 아래쪽을 톱니로 자릅니다
-    var n = 26, pts = ["0 0", "100% 0"];
-    for (var i = n; i >= 0; i--) pts.push((100 * i / n) + "% " + (i % 2 ? "calc(100% - 14px)" : "100%"));
-    elm.style.clipPath = "polygon(" + pts.join(", ") + ")";
-  }
-  zigzag($("slip"));
-  zigzag($("how-slip"));
 
   function pick(row) {
     st.row = row;
@@ -827,20 +1113,87 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     $("v-me").textContent = fmt(v.me);
     $("v-them").textContent = fmt(v.them);
   }
-  function playTrip() {
-    stopTimers();
-    var t = st.trip, p = st.row.p, legs = $("legs");
-    legs.textContent = "";
-    $("verdict").classList.remove("on");
-    $("verdict-note").textContent = "";
-    ["me", "them"].forEach(function (w) { $("m-line-" + w).style.left = M.COUPLE_MIN + "%"; });
-    setMeters({ me: 0, them: 0 });
+  // 지도: 공항(0시간) → 6 · 18 · 30 · 42시간째 지점. 구간마다 곡선 하나
+  var STOPS = [[70, 360], [185, 262], [318, 318], [432, 188], [532, 92]];
+  var svgNS2 = "http://www.w3.org/2000/svg";
+  function seg(a, b) {
+    var dx = b[0] - a[0];
+    return "M" + a[0] + " " + a[1] + " C " + (a[0] + dx * .5) + " " + (a[1] - 70) + ", " + (b[0] - dx * .5) + " " + (b[1] + 70) + ", " + b[0] + " " + b[1];
+  }
+  var segPaths = [];
+  (function buildMap() {
+    $("route").setAttribute("d", STOPS.slice(1).map(function (b, k) { return seg(STOPS[k], b); }).join(" "));
+    STOPS.slice(1).forEach(function (b, k) {
+      var path = document.createElementNS(svgNS2, "path");
+      path.setAttribute("class", "done"); path.setAttribute("d", seg(STOPS[k], b));
+      $("done").appendChild(path); segPaths.push(path);
+    });
+    STOPS.forEach(function (pt, k) {
+      var g = document.createElementNS(svgNS2, "g"); g.setAttribute("class", "pin");
+      var c = document.createElementNS(svgNS2, "circle"); c.setAttribute("cx", pt[0]); c.setAttribute("cy", pt[1]); c.setAttribute("r", k ? 9 : 11);
+      var t = document.createElementNS(svgNS2, "text"); t.setAttribute("x", pt[0]); t.setAttribute("y", pt[1] + (k ? 30 : 34));
+      t.textContent = k ? (6 + 12 * (k - 1)) + "h" : "공항";
+      g.appendChild(c); g.appendChild(t); $("pins").appendChild(g);
+    });
+  })();
+  var tripTl = null;
+  // 두 사람 점 위치. Anime.js 가 있으면 같은 transform 으로 두어야 크기 애니메이션이 위치를 덮어쓰지 않습니다
+  function placeWalkers(pt) {
+    var w = [$("w-me"), $("w-them")];
+    if (A) { A.utils.set(w, { translateX: pt[0], translateY: pt[1], scale: 1, opacity: 1 }); return; }
+    w.forEach(function (g) { g.setAttribute("transform", "translate(" + pt[0] + " " + pt[1] + ")"); });
+  }
+  function showBubble(k, r) {
+    var b = $("bubble"), pt = STOPS[k];
+    $("bub-t").textContent = r.name; $("bub-l").textContent = r.line; $("bub-d").textContent = r.delta;
+    b.style.left = (pt[0] / 600 * 100) + "%"; b.style.top = (pt[1] / 420 * 100) + "%";
+    var fx = pt[0] / 600;  // 가장자리 지점은 말풍선을 지도 안쪽으로 붙이고, 위쪽 지점은 아래로
+    b.style.setProperty("--tx", fx > .66 ? "-92%" : fx < .25 ? "-8%" : "-50%");
+    b.style.setProperty("--ty", pt[1] < 150 ? "26px" : "calc(-100% - 26px)");
+    if (A && !REDUCED) A.animate(b, { opacity: [0, 1], duration: 320, ease: "out(3)" });
+    else b.style.opacity = 1;
+  }
+  function tripRows() {
+    var t = st.trip, p = st.row.p;
     var rows = [{ hour: 0, name: "공항에서 첫 만남", line: "궁합 " + fmt(t.fit.me) + " / " + fmt(t.fit.them) + "에 첫인상 " + signed(t.first.me) + " / " + signed(t.first.them),
       delta: "나 " + fmt(t.start.me) + " · " + p["이름"] + " " + fmt(t.start.them), now: t.start }];
     t.log.forEach(function (e) {
       rows.push({ hour: e.hour, name: e.name, line: e.kind === "운" ? "성향과 상관없이 운에 맡긴 시간" : TEST[e.test] + "에서 " + KIND[e.kind],
         delta: "나 " + signed(e.delta.me) + " · " + p["이름"] + " " + signed(e.delta.them), now: e.now });
     });
+    return rows;
+  }
+  function showVerdict() {
+    var t = st.trip;
+    $("verdict-a").textContent = t.couple ? "커플 성사" : "엇갈림";
+    $("verdict-b").textContent = "48시간 뒤 " + fmt(t.end.me) + " / " + fmt(t.end.them);
+    $("verdict").classList.add("on");
+    $("verdict-note").textContent = t.couple
+      ? "두 사람 모두 " + M.COUPLE_MIN + "점을 넘었습니다. 콘솔 버전에서는 이런 커플에게 데이트 바우처를 나눠 지급합니다."
+      : "커플이 되려면 두 사람 모두 " + M.COUPLE_MIN + "점 이상이어야 합니다(막대 위의 흰 선). 다른 사람을 골라 다시 떠나 볼 수 있습니다.";
+  }
+  // 재생을 건너뛰거나 움직임을 줄인 경우: 마지막 지점, 모든 줄·핀·길을 켭니다
+  function finishTrip(rows) {
+    if (tripTl) { tripTl.pause(); tripTl = null; }
+    rows = rows || tripRows();
+    $("legs").querySelectorAll(".leg").forEach(function (x) { x.classList.add("on"); });
+    document.querySelectorAll("#pins .pin").forEach(function (x) { x.classList.add("on"); });
+    segPaths.forEach(function (sp) { sp.removeAttribute("style"); sp.removeAttribute("stroke-dasharray"); sp.removeAttribute("stroke-dashoffset"); });
+    placeWalkers(STOPS[STOPS.length - 1]);
+    showBubble(STOPS.length - 1, rows[rows.length - 1]);
+    setMeters(st.trip.end);
+    showVerdict();
+  }
+  function playTrip() {
+    stopTimers();
+    if (tripTl) { tripTl.pause(); tripTl = null; }
+    var p = st.row.p, legs = $("legs"), rows = tripRows();
+    $("w-them-t").textContent = p["이름"].charAt(p["이름"].length - 1);  // 상대 점에는 이름 끝 글자
+    legs.textContent = "";
+    $("verdict").classList.remove("on");
+    $("verdict-note").textContent = "";
+    ["me", "them"].forEach(function (w) { $("m-line-" + w).style.left = M.COUPLE_MIN + "%"; });
+    setMeters({ me: 0, them: 0 });
     var nodes = rows.map(function (r) {
       var leg = el("div", { class: "leg" },
         el("div", { class: "leg-top" }, el("strong", { text: r.name }), el("i", { class: "dotsline", "aria-hidden": "true" }), el("span", { class: "num", text: r.hour + "시간째" })),
@@ -848,26 +1201,39 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
       legs.appendChild(leg);
       return leg;
     });
-    rows.forEach(function (r, k) {
-      later(function () { nodes[k].classList.add("on"); setMeters(r.now); }, 500 + k * 1300);
-    });
-    later(function () {
-      $("verdict-a").textContent = t.couple ? "커플 성사" : "엇갈림";
-      $("verdict-b").textContent = "48시간 뒤 " + fmt(t.end.me) + " / " + fmt(t.end.them);
-      $("verdict").classList.add("on");
-      $("verdict-note").textContent = t.couple
-        ? "두 사람 모두 " + M.COUPLE_MIN + "점을 넘었습니다. 콘솔 버전에서는 이런 커플에게 데이트 바우처를 나눠 지급합니다."
-        : "커플이 되려면 두 사람 모두 " + M.COUPLE_MIN + "점 이상이어야 합니다(막대 위의 흰 선). 다른 사람을 골라 다시 떠나 볼 수 있습니다.";
-    }, 500 + rows.length * 1300);
+    var pins = document.querySelectorAll("#pins .pin");
+    pins.forEach(function (x) { x.classList.remove("on"); });
+    $("bubble").style.opacity = 0;
+    placeWalkers(STOPS[0]);
+    if (!A || REDUCED) { finishTrip(rows); return; }
+    var draws = segPaths.map(function (sp) { return A.svg.createDrawable(sp); });
+    A.utils.set(draws, { draw: "0 0" });
+    function arrive(k) {
+      nodes[k].classList.add("on");
+      pins[k].classList.add("on");
+      A.animate(pins[k], { scale: [1.8, 1], duration: 500, ease: "out(3)" });
+      setMeters(rows[k].now);
+      showBubble(k, rows[k]);
+    }
+    // 걷기: 두 점이 구간 곡선을 따라 이동(상대는 140ms 늦게), 지나온 길은 강조색으로 그려지고, 지점에 닿으면 말풍선과 호감도 막대가 바뀝니다
+    A.utils.set(["#w-me", "#w-them"], { scale: 0, opacity: 0 });
+    tripTl = A.createTimeline({ onComplete: function () { tripTl = null; showVerdict(); } });
+    tripTl.add(["#w-me", "#w-them"], { scale: 1, opacity: 1, duration: 500, ease: "out(3)" }, 200)
+      .call(function () { arrive(0); }, 700);
+    for (var k = 1; k < STOPS.length; k++) {
+      var at = 700 + k * 2000, mp = A.svg.createMotionPath(segPaths[k - 1]);
+      tripTl.add("#bubble", { opacity: 0, duration: 200 }, at - 1300)
+        .add(draws[k - 1], { draw: ["0 0", "0 1"], duration: 1100, ease: "inOut(2)" }, at - 1100)
+        .add("#w-me", { translateX: mp.translateX, translateY: mp.translateY, duration: 1100, ease: "inOut(2)" }, at - 1100)
+        .add("#w-them", { translateX: mp.translateX, translateY: mp.translateY, duration: 1100, ease: "inOut(2)" }, at - 960)
+        .call((function (n) { return function () { arrive(n); }; })(k), at);
+    }
+    tripTl.add({ duration: 900 }, 700 + (STOPS.length - 1) * 2000);
   }
   $("replay-trip").addEventListener("click", playTrip);
   $("logic-btn").addEventListener("click", function () {
     stopTimers();
-    $("legs").querySelectorAll(".leg").forEach(function (x) { x.classList.add("on"); });
-    setMeters(st.trip.end);
-    $("verdict-a").textContent = st.trip.couple ? "커플 성사" : "엇갈림";
-    $("verdict-b").textContent = "48시간 뒤 " + fmt(st.trip.end.me) + " / " + fmt(st.trip.end.them);
-    $("verdict").classList.add("on");
+    finishTrip();
     renderLogic();
     show("logic");
     $("logic").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
@@ -894,7 +1260,7 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
     say.forEach(function (x) { side.appendChild(typeof x === "string" ? el("p", { text: x }) : x); });
     var b = el("div", { class: "body" });
     body.forEach(function (x) { b.appendChild(x); });
-    return el("article", { class: "lstep" }, side, b);
+    return el("article", { class: "lstep glass" }, side, b);
   }
   function effectText(set) {
     return Object.keys(set).map(function (k) {
@@ -1009,11 +1375,15 @@ footer { position: sticky; bottom: 0; z-index: 0; min-height: 100svh; background
   // ------------------------------------------------------------ 시작
   if (badKey) {
     $("mode-badge").textContent = "설정 오류";
-    var g = $("gate-form");
+    show("gate");
+    var g = $("gate");
     g.textContent = "";
     g.appendChild(el("p", { class: "error", text: "config.js에 비밀 키(service_role · sb_secret_)가 들어 있어 실행을 멈췄습니다. publishable(anon) 키로 바꿔 주세요." }));
     return;
   }
+  show("gate");
+  introIn();
+  parallax();
   $("mode-badge").textContent = live ? "서버 연결: 정원 30명 적용" : "데모 모드: 이 브라우저에만 저장";
   $("scode-wrap").hidden = !live;
   showCount();

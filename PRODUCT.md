@@ -43,6 +43,7 @@ web
 
 - 가상 프로필: `men.csv`, `women.csv` → `docs/profiles.json`.
 - 한 쌍 분석 시각화: `docs/index.html` (M06 × W22).
+- 후보 얼굴 6장(`docs/assets/avatar-*.jpg`)은 사용자가 Gemini 로 만든 AI 가상 얼굴이다. 실제 인물이 아니며, 화면에 "AI 가상 얼굴"로 표기한다.
 - 실제 사용자 후기·통계는 없다. 만들지 않는다.
 
 ## Product Principles

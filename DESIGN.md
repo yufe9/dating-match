@@ -1,201 +1,168 @@
 ---
 name: 48시간 소개팅
-description: 여행하며 상대를 알아가는 소개팅. 페이지 전체가 한 장의 탑승권 묶음이고, 여행지마다 색이 바뀐다.
+description: 여행하며 상대를 알아가는 소개팅. 하늘 위에 떠 있는 유리 한 장씩, 그리고 한 장씩 뒤집히는 타로카드.
 colors:
-  field-putty: "#dedad3"
-  paper-bone: "#f3f2ef"
-  paper-bone-step: "#e6e4df"
-  ink-black: "#0a0a0a"
-  ink-muted: "#55514a"
-  accent-harbour-teal: "#256f82"
-  hawaii-sunset-field: "#e2502a"
-  hawaii-shell-paper: "#fff3e6"
-  hawaii-shell-step: "#fbe1cb"
-  hawaii-ink: "#2a0d05"
-  hawaii-muted: "#6b3a2a"
-  hawaii-hibiscus: "#a3123a"
-  hongkong-jade-night: "#0e3a37"
-  hongkong-paper: "#f5ecdc"
-  hongkong-paper-step: "#eadcc4"
-  hongkong-ink: "#141110"
-  hongkong-muted: "#5a4d40"
-  hongkong-neon-red: "#c8102e"
-  hongkong-on-field: "#f5ecdc"
-  sapporo-ice-field: "#c9dce7"
-  sapporo-snow-paper: "#fbfcfd"
-  sapporo-snow-step: "#e6eef3"
+  sky: "#aec6e2"
+  navy: "#11143a"
+  navy-muted: "#464b78"
+  electric: "#2b3bff"
+  magenta: "#c4146e"
+  sunset: "#ff7a3d"
+  neon: "#ff2e93"
+  ice: "#25d7ff"
+  night: "#0d1030"
+  hawaii-sky: "#f4a07c"
+  hawaii-ink: "#2b0b16"
+  hawaii-accent: "#c4146e"
+  hongkong-sky: "#0f2f3a"
+  hongkong-ink: "#f6f2ea"
+  hongkong-accent: "#ff2e93"
+  sapporo-sky: "#d3e5ef"
   sapporo-ink: "#0c1a24"
-  sapporo-muted: "#3f5464"
-  sapporo-lamp-amber: "#a0520f"
+  sapporo-accent: "#a0520f"
+  tarot-back: "#141a5c"
   error-red: "#b3261e"
 typography:
   display:
-    fontFamily: "Gowun Batang, Nanum Myeongjo, Batang, serif"
+    fontFamily: "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
     fontSize: "clamp(3.4rem, 1.6rem + 7vw, 7.5rem)"
-    fontWeight: 700
+    fontWeight: 760
     lineHeight: 0.95
-    letterSpacing: "-0.035em"
+    letterSpacing: "-0.06em"
   headline:
-    fontFamily: "Gowun Batang, Nanum Myeongjo, Batang, serif"
+    fontFamily: "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
     fontSize: "clamp(2rem, 1.3rem + 3.2vw, 4rem)"
-    fontWeight: 700
-    lineHeight: 1.05
-    letterSpacing: "-0.02em"
+    fontWeight: 680
+    lineHeight: 1.08
+    letterSpacing: "-0.035em"
   lead:
-    fontFamily: "Gowun Batang, Nanum Myeongjo, Batang, serif"
+    fontFamily: "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
     fontSize: "clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem)"
-    fontWeight: 400
+    fontWeight: 500
     lineHeight: 1.45
   body:
-    fontFamily: "IBM Plex Sans KR, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
+    fontFamily: "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
     fontSize: "clamp(1.0625rem, 1.02rem + 0.2vw, 1.1875rem)"
     fontWeight: 400
-    lineHeight: 1.55
+    lineHeight: 1.6
   small:
-    fontFamily: "IBM Plex Sans KR, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
+    fontFamily: "Pretendard Variable, Pretendard, Apple SD Gothic Neo, Malgun Gothic, sans-serif"
     fontSize: "0.875rem"
-    fontWeight: 400
+    fontWeight: 600
     lineHeight: 1.5
 rounded:
-  none: "0"
-  ticket: "10px"
+  input: "14px"
+  tarot: "22px"
+  panel: "30px"
+  sheet: "34px"
+  pill: "999px"
 spacing:
   gutter: "clamp(16px, 3.2vw, 40px)"
-  part: "clamp(28px, 4vw, 64px)"
+  panel: "clamp(24px, 3.4vw, 44px)"
   section: "140px"
 components:
   button-primary:
-    backgroundColor: "{colors.accent-harbour-teal}"
-    textColor: "{colors.paper-bone}"
+    backgroundColor: "{colors.electric}"
+    textColor: "#ffffff"
     typography: "{typography.body}"
-    rounded: "{rounded.none}"
-    padding: "16px 26px"
-  button-primary-hover:
-    backgroundColor: "{colors.ink-black}"
-    textColor: "{colors.paper-bone}"
-  ticket:
-    backgroundColor: "{colors.paper-bone}"
-    textColor: "{colors.ink-black}"
-    rounded: "{rounded.ticket}"
-    padding: "{spacing.part}"
-  ticket-stub:
-    backgroundColor: "{colors.paper-bone-step}"
-    textColor: "{colors.ink-black}"
-    padding: "{spacing.part}"
-  choice:
-    backgroundColor: "{colors.paper-bone-step}"
-    textColor: "{colors.ink-black}"
+    rounded: "{rounded.pill}"
+    padding: "18px 28px"
+  glass-panel:
+    textColor: "{colors.navy}"
+    rounded: "{rounded.panel}"
+    padding: "{spacing.panel}"
+  tarot-face:
+    textColor: "{colors.navy}"
     typography: "{typography.lead}"
-    rounded: "{rounded.none}"
-    padding: "clamp(22px, 3.4vw, 36px) clamp(20px, 3vw, 32px)"
-  choice-picked:
-    backgroundColor: "{colors.accent-harbour-teal}"
-    textColor: "{colors.paper-bone}"
-  pass-best:
-    backgroundColor: "{colors.ink-black}"
-    textColor: "{colors.paper-bone}"
-    rounded: "{rounded.ticket}"
+    rounded: "{rounded.tarot}"
+  tarot-back:
+    backgroundColor: "{colors.tarot-back}"
+    textColor: "#ffffff"
+    rounded: "{rounded.tarot}"
 ---
 
 # Design System: 48시간 소개팅
 
-이 문서는 `docs/app.html` 의 디자인 규칙서다. 값의 원본은 위 머리말(YAML)이고, 실제 코드는 `docs/app.html` 맨 위 `:root` 와 `html[data-city=…]` 블록이다. 둘이 어긋나면 코드를 기준으로 이 문서를 고친다. 제품 사실(누가, 왜, 무엇을)은 `PRODUCT.md` 에 있다.
+`docs/app.html` 의 디자인 규칙서. 값의 원본은 위 머리말이고, 실제 코드는 `docs/app.html` 맨 위 `:root` 와 `html[data-city=…]` 블록이다. 어긋나면 코드를 기준으로 이 문서를 고친다. 제품 사실은 `PRODUCT.md`.
 
 ## Overview
 
-**핵심 비유: 탑승권 묶음.** 여행에 실제로 있는 인쇄물인 탑승권을 페이지 자체로 쓴다. 입장 화면은 탑승권과 떼어 내는 부분(탑승 수속), 카드는 한 장씩 넘기는 탑승권, 목적지는 발권된 표, 후보는 탑승객 표, 48시간은 톱니로 잘린 일정표 슬립, 바닥글은 탑승권 뒷면이다. 새 화면을 만들 때도 이 셋 중 하나의 종이로 만든다: 탑승권(점선 절취선 + 반원 홈), 떼어 내는 부분(한 단계 어두운 종이), 일정표 슬립(아래가 톱니, 점선 리더).
+**하늘 위의 유리 한 장씩.** 사용자가 지정한 아티팩트 **Liquid Glass Lab**(굴절 유리, 반사광, 떠다니는 색 덩어리)과 **Anime.js v4 데모판**, 레퍼런스 **danielaristizabal.net**(하늘색 한 면, 비스듬히 겹친 사진 더미, 세로 캡션, 모서리 고정 글자)을 따른다(2026-10-15). 그 전의 탑승권 디자인은 버렸다.
 
-**여행 온도가 페이지 색을 정한다.** 카드를 고르는 동안 화면 바탕이 지금 기운 도시 색으로 바뀌고, 목적지가 정해지면 그 도시 색으로 고정된다. 이것이 이 페이지의 "살아 있는 한 가지"다.
-
-이 방향은 taste 스킬의 방향 추첨에서 `page-is-the-object`(seed 90236116)를 고른 결과다. `node .claude/skills/design-taste-frontend/scripts/draw.mjs --show` 로 원래 지침을 다시 볼 수 있다(`.taste-skill/direction.json`).
+- **대문**(`#intro`): 하늘색 한 면 + 도시 사진 6장 더미 + 광택 파란 하트 로고 + 큰 글자 `48 HOURS`(채움) / `LOVE TRIP`(외곽선) + 굴절 유리 카드 한 장. 카드 안에서 소개 → 탑승 수속 → 누구와·나이 → 이상형 월드컵 시작이 바뀐다.
+- **이상형 월드컵**(`#cards`): 타로카드 두 장(A·B)이 덱에서 날아와 한 장씩 뒤집힌다. 고르면 고른 카드가 떠올랐다 위로 날아가고 남은 카드는 떨어진다.
+- **여행 온도는 글로 알리지 않는다.** 카드를 고르는 동안 하늘색(`data-city`)만 지금 기운 도시 쪽으로 바뀐다. "지금은 홍콩" 같은 문구를 다시 넣지 않는다(사용자 지정: 긴장감).
+- **목적지·후보·일정표·로직**: 모두 유리 패널. 궁합 1위 후보만 강조색 그라데이션으로 뒤집는다.
 
 ## Colors
 
-종이·잉크·바탕 세 가지에 강조색 하나. 두 도수 인쇄물처럼 평평한 색만 쓴다.
-
-### 기본 (출발 전)
-- **Putty 바탕** `field-putty`: 페이지 바닥. 도시가 정해지기 전의 공항 대기실.
-- **Bone 종이** `paper-bone` / 한 단계 어두운 `paper-bone-step`: 탑승권과 떼어 내는 부분. 노란 크림으로 바꾸지 않는다.
-- **잉크** `ink-black`, 보조 `ink-muted`.
-- **Harbour Teal** `accent-harbour-teal`: 강조. 행동 버튼과 지금 위치(진행 점)에만.
-
-### 하와이: 석양이 지고 뜨겁고 열정적인
-`hawaii-sunset-field` 바탕, `hawaii-shell-paper` 종이, `hawaii-hibiscus` 강조. 바탕 위 글자는 거의 검은 갈색.
-
-### 홍콩: 따뜻하지만 약간 시린 구석
-`hongkong-jade-night` 바탕(유일한 어두운 바탕이라 바탕 위 글자는 `hongkong-on-field` 밝은색), 따뜻한 종이 `hongkong-paper`, `hongkong-neon-red` 강조.
-
-### 삿포로: 차갑고 얼음장 같지만 따뜻한 구석
-`sapporo-ice-field` 바탕, 눈빛 종이 `sapporo-snow-paper`, 가로등 하나 같은 `sapporo-lamp-amber` 강조.
+- 기본 하늘 `sky`, 글자 `navy`, 강조 `electric` → `magenta` 그라데이션(버튼).
+- 떠다니는 색 덩어리는 `--b1~--b4` 변수 네 개를 도시마다 바꾼다.
+- **하와이**: 석양 산호빛 하늘 `hawaii-sky`, 글자 `hawaii-ink`, 강조 `hawaii-accent`.
+- **홍콩**: 유일한 어두운 하늘 `hongkong-sky`. 유리도 어둡게(`--glass-*` 알파를 낮춤), 글자는 밝게(`hongkong-ink`), 강조 `neon` 위 글자는 어두운색(`--accent-ink: #1a0610`)으로 대비 4.5:1.
+- **삿포로**: 얼음빛 하늘 `sapporo-sky`, 가로등 같은 강조 `sapporo-accent`.
 
 ### Named Rules
-- **도시 색은 한 곳에서만.** 색 변수(`--field --paper --paper-2 --ink --muted --accent --accent-ink --on-field --on-field-muted`)를 `html[data-city="…"]` 블록에서만 바꾼다. 개별 요소에 도시 색을 직접 쓰지 않는다.
-- **대비 4.5:1.** 강조색 위 흰 글자, 바탕 위 글자 모두 4.5:1 이상. 새 강조색은 넣기 전에 잰다.
-- **회색 본문 금지.** 읽는 글은 `--ink`. `--muted` 는 보조 설명(14px 글)에만.
+- **도시 색은 `html[data-city]` 블록에서만 바꾼다.** 요소마다 도시 색을 직접 쓰지 않는다.
+- **대비 4.5:1.** 버튼 그라데이션 양 끝 모두 흰 글자 기준 4.5:1 이상. 새 색은 넣기 전에 잰다.
+- 바닥글은 도시와 무관한 밤하늘 `night`.
 
 ## Typography
 
-두 서체만 쓴다. 제목·장면·목적지 이름은 **Gowun Batang**(손으로 찍은 활판 같은 명조), 본문·표·입력은 **IBM Plex Sans KR**. 크기는 다섯 단계(`display` `headline` `lead` `body` `small`)뿐이고, 여섯 번째 크기를 만들지 않는다.
+**Pretendard 하나만 쓴다**(SIL OFL, `docs/vendor/pretendard/PretendardVariable.woff2`, 가변 굵기 45~920). Google Fonts 를 쓰지 않는다. Apple SD Gothic Neo 파일은 라이선스상 사이트에 올리지 않는다.
 
-### Named Rules
-- **제목은 어떤 너비에서도 두 줄 이하.** 넘치면 글자를 줄이지 말고 말을 줄인다("48시간은 이렇게 흘러갑니다" → "48시간의 일정표").
-- **한글은 단어 단위로 줄바꿈.** `body` 에 `word-break: keep-all` 이 걸려 있다. 지우면 "48 / 시간"처럼 단어가 잘린다.
-- **본문 최소 17px, 보조 글 14px.** 13px 이하는 쓰지 않는다.
-- **숫자는 `font-variant-numeric: tabular-nums`.** 고정폭 글꼴로 흉내 내지 않는다.
+- 큰 글자는 760·680 굵기(사용자 요청으로 한 단계 낮춤)에 자간을 좁게(-0.035 ~ -0.06em), 강조는 620, 본문은 400, 보조는 600. 800 이상은 쓰지 않는다.
+- 제목은 어떤 너비에서도 두 줄 이하. 한글은 `word-break: keep-all`.
+- 숫자는 `tabular-nums`.
 
 ## Layout
 
-- 좌우 여백은 `spacing.gutter` 하나, 큰 구역 사이는 `spacing.section`(140px)으로 구역 안 간격보다 확실히 크게.
-- 탑승권은 데스크톱에서 본문 1.7 : 떼어 내는 부분 1, 760px 이하에서는 위아래로 쌓이고 절취선이 가로로 눕는다.
-- 결과 쪽은 아래로 쌓인다: 목적지 → 일정표 → 로직 공개. 앞 화면을 지우지 않는다.
-- 휴대폰 첫 화면에도 행동 버튼이 하나 보여야 한다(입장 화면의 `탑승 수속하기`).
+- 좌우 여백 `spacing.gutter`, 큰 구역 사이 `spacing.section`.
+- 대문은 `min-height: max(100svh, 880px)`: 탑승 수속 단계에서도 유리 카드가 잘리지 않게.
+- 휴대폰: 대문은 로고 → 큰 글자 → 사진 더미 → 유리 카드 순으로 쌓이고, 첫 화면 안에 시작 버튼이 보여야 한다. 타로카드는 두 장이 나란히 화면 너비를 나눠 쓴다.
 
 ## Elevation & Depth
 
-**평평하다.** 쉬고 있는 요소에는 그림자가 없다. 면은 그림자나 선이 아니라 종이 색 한 단계(`--paper` → `--paper-2`)로 나눈다. 강조하고 싶으면 색을 뒤집는다(궁합 1위 탑승객 표는 잉크 바탕에 종이색 글자).
+유리가 깊이를 만든다: 안쪽 반사층(inset 그림자 여러 겹) + 아래로 떨어지는 부드러운 그림자 하나 + 포인터를 따라오는 반사광(`--mx --my`). 굴절(SVG 변위 필터)은 `data-glass` 가 붙은 큰 유리(대문 카드, 목적지 패널, 일정표, 버튼)에만 쓰고, 스크립트가 만드는 패널(후보, 로직 단계)과 3D 로 뒤집히는 타로카드에는 CSS 유리만 쓴다(Chromium 외 브라우저는 블러로 대체).
 
 ## Shapes
 
-- 종이(탑승권·카드·후보 표·로직 단계)는 `rounded.ticket` 10px, 버튼과 선택지는 `rounded.none` 각진 모서리. 이 둘 말고 다른 둥글기를 만들지 않는다.
-- **절취선**: 6px 둥근 점선(`border: 6px dotted var(--field)`) + 양 끝에 바탕색 반원 홈(지름 34px). 얇은 1px 선으로 대신하지 않는다.
-- **톱니**: 일정표 슬립 아래쪽은 `clip-path: polygon` 톱니(`zigzag()` 함수). 위쪽은 곧다.
-- **점선 리더**: 일정표 줄은 왼쪽 내용 … 오른쪽 값 사이를 4px 점선으로 잇는다.
+입력칸 14px, 타로카드 22px, 패널 30px, 대문 카드 34px, 버튼·막대 완전 둥근 알약. 타로카드 앞면은 안쪽 10px 에 얇은 틀을 두르고, 뒷면은 남색 위 하트 무늬 + `48 HOURS`.
 
 ## Components
 
-### Buttons
-평평한 한 색, 각진 모서리. 누르면 `scale(0.97)`(140ms), 마우스가 있는 기기에서만 hover 시 잉크색으로 뒤집힌다. 보조 버튼(`.btn.ghost`)은 테두리 대신 글자색 13% 면을 채운다.
+### 이상형 월드컵 (타로카드)
+- 장면 제목 위에 로마 숫자(`VII / XVI`), 아래에 진행 점 16개. 카드 앞면: 위 `VII · A`, 가운데 선택지 문장(800), 아래 `이쪽이 더 나답다`.
+- 움직임(Anime.js): 두 장이 화면 아래 75% 지점에서 ±16° 기울어진 채 120ms 간격으로 올라오고(720ms, out(4)), 260ms 간격으로 한 장씩 `rotateY 180 → 0` 뒤집힌다(780ms, inOut(3)). 고르면 고른 카드 `scale 1.06`·위로 18px(260ms) → 남은 카드 아래로 떨어지며 사라짐(420ms) → 고른 카드 위로 날아감(480ms) → 다음 두 장.
+- 날아오는 중의 클릭은 무시한다(`busy`). 화면에 들어오면 초점은 카드가 아니라 장면 제목에 둔다(카드에 두면 A 를 미리 고른 것처럼 보임).
 
-### 카드 (양자택일)
-장면 제목(`headline`) 아래 두 선택지를 위아래로 두고 사이를 "또는" 절취선으로 나눈다. 고르면 강조색으로 채워진 뒤 200ms 만에 고른 쪽 반대 방향으로 빠지고, 다음 카드가 260ms 동안 들어온다(ease-out). 진행은 16개 점으로만 보여 준다(번호 매기기 금지).
+### 도시 공개 (16번째 카드 → 탑승권)
+16번째 카드를 고르면 남은 카드는 떨어지고, 고른 카드가 `rotateY 540`·가로로 늘어나며 사라지고, 유리 탑승권(`#bpass`: BOARDING PASS · 인천 ICN → / 도착지 코드 / 도시 · 48시간, 남색 떼어 내는 부분 FLIGHT 48H GATE 16)이 돌아 나타난다. 도착지 코드와 도시 이름은 `scrambleText` 로 전광판처럼 1.3초 굴러 멈추고, 그 순간(3초) 하늘이 그 도시 색으로 바뀐 뒤 탑승권이 위로 사라지며 결과 화면으로 넘어간다(전체 약 4.7초). 사용자가 세 후보(탑승권·도시 카드 셔플·비행기 창문) 중 고른 연출이다.
 
-### 탑승객 표 (후보)
-본문 · 절취선 · 버튼 칸. 1위만 색을 뒤집는다. 이름은 `Gowun Batang`, 자기소개는 전체 잉크, 숫자(성향 유사도·궁합 점수)는 보조 줄에.
+### 48시간 여행 (지도 위 이동 경로)
+그 도시 사진을 옅게(22%) 깐 유리 지도에 공항 → 6h → 18h → 30h → 42h 곡선 경로. "나"(잉크색)와 상대(강조색, 이름 끝 글자) 두 점이 구간마다 1.1초씩 걷고(상대는 140ms 늦게), 지나온 길은 강조색으로 그려진다(`createDrawable`). 지점에 닿으면 핀이 커지고 말풍선에 무슨 일·왜·호감도 변화가 뜨며, 오른쪽 일정표 줄과 호감도 막대가 함께 바뀐다. 가장자리 지점의 말풍선은 지도 안쪽으로 붙인다(`--tx --ty`). "로직 공개"를 누르면 재생을 건너뛰고 마지막 상태로.
 
-### 일정표 슬립 (48시간)
-호감도 막대 두 줄(나 → 상대는 잉크, 상대 → 나는 강조색, 커플 기준선은 종이색 세로선) + 시간별 줄이 1.3초 간격으로 켜진다. 마지막 줄은 잉크 바탕 결과 띠.
+### 후보 얼굴 (AI 가상 얼굴)
+후보 카드 왼쪽에 1:1 얼굴 사진(`docs/assets/avatar-{f|m}-{a|b|c}.jpg`, 640px). 사용자가 Gemini 로 만든 AI 가상 얼굴이며, **사람이 아니라 추천 순위 자리에 고정**된다: A(궁합 1위) 단정·따뜻·아이보리, B 밝고 활동적·연하늘, C 세련·개성·차콜. 남녀가 같은 분위기·옷 색을 공유해 성별을 바꿔도 같은 세트로 보인다. 원본(1792×2400)을 위에서 80px 아래부터 1792×1792 로 잘라 Gemini 워터마크가 빠지게 했다. 배경은 사이트 하늘과 같은 하늘색이라 누끼를 따지 않는다. 사진 아래에 늘 "AI 가상 얼굴"을 적고, 지도 위 점에는 쓰지 않는다(사용자 지정). 버튼은 글 아래에 둔다(옆에 두면 글 칸이 너무 좁아짐).
 
-### 로직 공개 단계
-왼쪽 설명(4) : 오른쪽 표·막대(7). 0.9초 간격으로 한 단계씩 올라온다. "한 번에 보기"와 "다시 재생"을 늘 둔다.
+### 대문 움직임
+사진 더미 흩어져 쌓임 → 큰 글자 한 글자씩(splitText) → 유리 카드 맺힘 → 로고 스프링 → 공항 코드 스크램블. 마우스를 따라 사진이 `data-depth` 만큼 움직인다(createAnimatable). 시작하면 사진이 위로 흩어지며 카드 화면으로.
 
-### 움직임
-- 감속 곡선 `cubic-bezier(0.22, 1, 0.36, 1)`(들어오고 나감), `cubic-bezier(0.76, 0, 0.24, 1)`(화면 안에서 움직임). `ease-in` 금지, `transition: all` 금지, `transform`·`opacity`·`clip-path` 만 움직인다.
-- 사진은 위에서 아래로 열리고(`clip-path`), 큰 사진은 24초에 걸쳐 6% 천천히 확대된다.
-- 끝은 커튼 바닥: 본문이 위로 걷히며 탑승권 뒷면(바닥글)이 드러난다.
-- `prefers-reduced-motion: reduce` 에서는 이동 없이 바로 보인다.
+### 공통
+- 버튼: 알약 + 그라데이션, 누르면 `scale(.97)`, 마우스 기기에서만 hover 시 밝아지고 화살표가 4px 이동.
+- 로직 공개: 유리 패널이 0.9초 간격으로 올라오고 "한 번에 보기"·"다시 재생"을 늘 둔다.
+- 움직임 줄이기 설정이면 날아오기·뒤집기·떠다니기를 모두 끄고 바로 보여 준다.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** 새 화면을 탑승권·떼어 내는 부분·일정표 슬립 중 하나로 만든다.
-- **Do** 도시를 추가할 때 네 곳을 함께 고친다: `docs/app-logic.js` 의 `CITIES`(온도 구간, 이름, 공항 코드, 분위기 문장), `docs/app.html` 의 `html[data-city]` 색 블록과 `PHOTOS`, 사진 2장 + `docs/assets/credits.json`, 이 문서의 Colors.
-- **Do** 사진은 실제 그 도시의 공개 라이선스 사진만 쓰고 바닥글에 출처를 남긴다(`assets.mjs --get`).
-- **Do** 고친 뒤 `lint.mjs` 와 `inspect.mjs` 실패 0, `node tests/flow.mjs` 로 세 도시 흐름을 눌러 보고 스크린샷을 `docs/design-ref/` 와 비교한다.
+- **Do** 새 화면도 하늘 + 유리 패널 + Pretendard 로 만든다.
+- **Do** 도시를 추가할 때 `app-logic.js` 의 `CITIES`, `app.html` 의 `html[data-city]` 블록(하늘·글자·강조·유리 알파·`--b1~--b4`)과 `PHOTOS`, 사진 2장 + `credits.json`, 이 문서의 Colors 를 함께 고친다.
+- **Do** 고친 뒤 `lint.mjs` 실패 0, `inspect.mjs --allow gradient,shadow,glass` 실패 0, `node tests/flow.mjs` 세 도시를 돌리고 `docs/design-ref/` 와 비교한다.
 
 ### Don't:
-- **Don't** 제목 위에 작은 라벨(eyebrow)을 단다.
-- **Don't** 고정폭 글꼴, 01/02/03 번호, 얇은 구분선, 1px 테두리 상자를 쓴다(실제 표의 칸 선은 예외).
-- **Don't** 그라데이션(배경·버튼·글자), 쉬고 있는 요소의 그림자, 유리 효과(배경 흐림), 둥근 알약 모양 탭을 쓴다.
-- **Don't** 보라색·남색 강조, 노란 크림 바탕에 테라코타 조합을 쓴다.
-- **Don't** 이모지나 아이콘 카드 줄로 빈자리를 채운다. 비면 크기를 키우거나 사진을 넣는다.
-- **Don't** 가상 인물의 후기·통계·성공 사례를 지어낸다.
+- **Don't** 카드를 고르는 동안 도시 이름이나 온도를 글로 알려 주지 않는다.
+- **Don't** Pretendard 외 글꼴, 외부 글꼴 서비스를 추가하지 않는다.
+- **Don't** 제목 위에 작은 라벨(eyebrow)을 단다. 고정폭 글꼴을 쓴다.
+- **Don't** 이모지로 아이콘을 대신한다. 가상 인물의 후기·통계를 지어낸다.
+- **Don't** `transition: all`, `ease-in` 으로 들어오는 움직임, 레이아웃 속성 애니메이션을 쓴다.

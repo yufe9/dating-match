@@ -23,7 +23,7 @@ UI 문자열과 주석은 전부 한국어입니다.
 node tests/app-logic.test.js              # 웹 로직 11개
 python match.py check                     # 파이썬 자체 점검 + 시각화 기준값
 node .claude/skills/design-taste-frontend/scripts/lint.mjs docs/app.html      # 실패 0
-node .claude/skills/design-taste-frontend/scripts/inspect.mjs docs/app.html   # 실패 0 (영상 없음 경고 1개는 의도)
+node .claude/skills/design-taste-frontend/scripts/inspect.mjs docs/app.html --allow gradient,shadow,glass   # 실패 0 (Liquid Glass 양식 예외는 DESIGN.md)
 python -m http.server 8765 --directory docs   # 다른 터미널에서 켜 두고
 node tests/flow.mjs .taste-skill/flow 1440 900 abaabbabaaabbaab   # 하와이
 node tests/flow.mjs .taste-skill/flow 1440 900 abaabaaaabbbaaaa   # 홍콩
@@ -46,7 +46,7 @@ npx --yes impeccable@latest install --providers=claude --scope=project
 
 ## 규칙
 
-- 외부 라이브러리는 먼저 묻습니다. CSP가 스크립트·이미지를 같은 출처로 제한합니다(폰트만 Google Fonts).
+- 외부 라이브러리는 먼저 묻습니다. CSP가 스크립트·이미지·글꼴을 모두 같은 출처로 제한합니다. Anime.js 4.5.0(MIT)과 글꼴 Pretendard(OFL)는 `docs/vendor/` 에 넣어 씁니다(사용자 지정). 글꼴은 Pretendard 하나만 씁니다.
 - 화면은 `textContent` 로만 그립니다(`innerHTML` 금지). 학번은 브라우저에 남기지 않습니다.
 - `docs/config.js` 에는 Supabase URL과 publishable 키만. 비밀 키(`sb_secret_`, `service_role`)는 절대 넣지 않습니다.
 - 가상 인물의 후기·통계를 지어내지 않습니다. 사진은 공개 라이선스만 쓰고 출처를 `docs/assets/credits.json` 과 페이지 바닥에 남깁니다.
