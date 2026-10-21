@@ -9,6 +9,8 @@
 - **v2 기믹**: 연애 예능처럼 쌍방 확인 → 48시간 여행 → 커플 지원금까지 시즌 하나를 시뮬레이션합니다. ([아래](#v2-기믹-이번-시즌))
 - **시각화**: 무작위로 뽑은 한 쌍(M06 × W22)의 분석 페이지 → [docs/index.html](docs/index.html)
   ([바로 보기](https://yufe9.github.io/dating-match/))
+- **매칭 로직 검색 (웹)**: 70명 중 한 명을 고르고 돋보기 검색창에서 질문("로직 확인하기", "왜 1위가 잘 맞아?" …)을 누르면
+  1~7단계 결과로 답을 보여 줍니다 → [docs/ask.html](docs/ask.html). 답은 `python match.py ask` 가 미리 계산한 값이고, 질문 목록은 `match.py` 의 `ASK_QUESTIONS` 입니다.
 - **48시간 소개팅 (웹)**: 가입하고 원하는 취향을 고르면 가상 인물과 매칭하고 로직까지 보여 주는 간이 앱
   → [바로 해 보기](https://yufe9.github.io/dating-match/app.html) ([아래](#48시간-소개팅-웹))
 
@@ -23,6 +25,7 @@ python match.py all      # 70명 전원의 1위만 한 줄씩
 python match.py season   # 시즌 전체: 화살표 → 안정 매칭 → 여행 자격 → 여행 → 커플·지원금
 python match.py check    # 자체 점검 + 시각화 기준값(M06 × W22) 확인
 python match.py export   # 웹 앱용 docs/profiles.json 다시 만들기 (CSV·점수표를 바꾼 뒤)
+python match.py ask      # 질문 검색 화면용 docs/ask.json 다시 만들기 (CSV·점수표·질문을 바꾼 뒤)
 ```
 
 Python 3.10 이상에서 동작합니다(3.13에서 확인).
@@ -167,6 +170,8 @@ GitHub Pages에서 바로 열리는 "여행하며 상대를 알아가는 소개�
 | `docs/index.html` | M06 × W22 시각화 (스크롤하면 Anime.js 애니메이션) |
 | `docs/app.html`, `docs/app-logic.js`, `docs/config.js` | 48시간 소개팅 웹 앱 (화면 · 순수 로직 · 서버 설정) |
 | `docs/profiles.json` | `python match.py export`로 만든 가상 인물 + 점수표 + 48시간 여행 규칙 (웹이 읽음) |
+| `docs/ask.html`, `docs/ask.json` | 매칭 로직 검색 화면과 그 답 (`python match.py ask`로 만든 70명 × 질문 11개) |
+| `적용내역.txt` | 과제 제출용 정리: 로직 4단계, 질문 검색 화면, 로컬 LLM 검토 결과와 측정값 |
 | `docs/assets/` | 도시 사진 6장과 출처 기록 `credits.json` |
 | `docs/vendor/` | Anime.js 4.5.0(MIT, 애니메이션)과 Pretendard 가변 글꼴(OFL) — 외부 서버 없이 같은 출처에서 불러옴 |
 | `PRODUCT.md`, `DESIGN.md` | 제품 기록과 디자인 규칙서 (impeccable 스킬이 읽음) |

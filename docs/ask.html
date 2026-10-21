@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<title>매칭 로직 검색 · 48시간 소개팅</title>
+<meta name="description" content="가상 인물 70명의 매칭 결과를 질문으로 찾아봅니다. 답은 매칭 로직(거르기 → 임베딩 → 규칙 점수 → 이유)이 계산한 값입니다.">
+<link rel="icon" href="data:,">
+<link rel="preload" href="vendor/pretendard/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+/* 구조: 하늘 위 유리 한 장. 위에서 아래로 사람 고르기 → 돋보기 검색창(누르면 질문 목록) → 추천 질문 → 질문과 답이 차례로 쌓임.
+   답은 python match.py ask 가 만든 ask.json 을 그대로 보여 줍니다(콘솔과 같은 숫자). 디자인 규칙은 DESIGN.md 를 따릅니다. */
+@font-face { font-family: "Pretendard Variable"; font-weight: 45 920; font-style: normal; font-display: swap;
+  src: url("vendor/pretendard/PretendardVariable.woff2") format("woff2-variations"), url("vendor/pretendard/PretendardVariable.woff2") format("woff2"); }
+:root {
+  --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --field: #aec6e2; --ink: #11143a; --muted: #3a3f6e; --rose: #b52a55; --accent: var(--rose); --accent-ink: #ffffff;
+  --glass-a: rgba(255,255,255,.54); --glass-b: rgba(255,255,255,.40); --glass-c: rgba(255,255,255,.50); --sheen: .30;
+  --paper: rgba(255,255,255,.58); --paper-2: rgba(17,20,58,.08); --line: rgba(17,20,58,.12);
+  --b1: #e6ecfc; --b2: #f0d4da; --b3: #c9d5f3; --b4: #a9bce6;
+  --s-small: 0.875rem;
+  --s-body: clamp(1.0625rem, 1.02rem + 0.2vw, 1.1875rem);
+  --s-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --s-title: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  --s-head: clamp(2.125rem, 1.3rem + 3.2vw, 4rem);
+  --s-display: clamp(3.375rem, 1.6rem + 7vw, 7.5rem);
+  --m: clamp(16px, 3.2vw, 40px);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--field); }
+body { margin: 0; min-height: 100svh; background: var(--field); color: var(--ink); font: 400 var(--s-body)/1.6 var(--font); letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: anywhere; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+h1, h2 { font-weight: 680; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1px; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+
+/* 떠다니는 색 덩어리 2개 (밝은 하늘: 명도 75% 이상) */
+.sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.blob { position: absolute; width: var(--w); aspect-ratio: 1; border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; opacity: .5;
+  background: linear-gradient(var(--a), var(--c1), var(--c2)); /* taste-skill-ignore: 아티팩트 양식 */
+  filter: blur(36px); animation: morph var(--d) ease-in-out infinite alternate, drift calc(var(--d) * 1.6) ease-in-out infinite alternate; }
+@keyframes morph { 50% { border-radius: 63% 37% 38% 62% / 55% 61% 39% 45%; } 100% { border-radius: 35% 65% 49% 51% / 38% 32% 68% 62%; } }
+@keyframes drift { to { transform: translate3d(var(--tx), var(--ty), 0) rotate(40deg); } }
+
+/* 유리 (app.html 과 같은 겹쳐 쌓은 반사층) */
+.glass { position: relative; isolation: isolate; --mx: 28%; --my: 0%; color: var(--ink);
+  background: linear-gradient(160deg, var(--glass-a), var(--glass-b) 45%, var(--glass-c)); /* taste-skill-ignore: 아티팩트 양식 */
+  -webkit-backdrop-filter: blur(20px) saturate(1.15); backdrop-filter: blur(20px) saturate(1.15); /* taste-skill-ignore: 아티팩트 양식 (글자 아래 배경을 충분히 흐리게) */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), inset 0 -1px 0 rgba(255,255,255,.3), inset 0 14px 22px -16px rgba(255,255,255,.9), 0 1px 2px rgba(17,20,58,.10), 0 30px 60px -28px rgba(17,20,58,.45); /* taste-skill-ignore: 아티팩트 양식 */ }
+.glass::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0; mix-blend-mode: screen;
+  background: radial-gradient(110% 80% at var(--mx) var(--my), rgba(255,255,255,var(--sheen)), rgba(255,255,255,0) 55%); /* taste-skill-ignore: 아티팩트 양식 */ }
+.glass::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 0;
+  background: radial-gradient(55% 55% at var(--mx) var(--my), #fff, rgba(255,255,255,.3) 60%, rgba(255,255,255,.1)); /* taste-skill-ignore: 아티팩트 양식 */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; /* taste-skill-ignore: 테두리 반사광 마스크 */ }
+.glass > * { position: relative; z-index: 1; }
+
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 24px var(--m); flex-wrap: wrap; }
+.wordmark { font-weight: 600; font-size: var(--s-lead); letter-spacing: -0.015em; text-decoration: none; }
+.top nav { display: flex; gap: 20px; flex-wrap: wrap; font-size: var(--s-small); color: var(--muted); }
+main { max-width: 860px; margin: 0 auto; padding: 8px var(--m) 160px; display: grid; gap: 28px; }
+.hero { display: grid; gap: 14px; padding-top: clamp(8px, 4vw, 48px); }
+.hero h1 { font-size: var(--s-display); line-height: 0.95; letter-spacing: -0.05em; }
+.hero p { font-size: var(--s-lead); line-height: 1.45; letter-spacing: -0.015em; max-width: 36ch; }
+/* 첫 화면 등장: 제목 → 소개 → 사람 → 검색창 → 추천 질문 순으로 아래에서 올라옴 */
+.enter { animation: rise 720ms var(--ease-out) both; animation-delay: calc(var(--i) * 90ms); }
+
+/* 사람 고르기 */
+.who { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-weight: 600; }
+.who select { font: 400 var(--s-body) var(--font); color: var(--ink); background: var(--paper); border: 0; border-radius: 14px; padding: 10px 14px; min-width: 0; max-width: 100%; }
+
+/* 돋보기 검색창 + 질문 목록 */
+.search { position: relative; z-index: 10; } /* 목록이 칩·카드 위에 뜨게. 등장 애니메이션은 안쪽 .bar 에만 둠(묶음에 걸면 목록의 배경 흐림이 꺼짐) */
+.bar { display: flex; align-items: center; gap: 12px; border-radius: 999px; padding: 6px 8px 6px 22px; }
+.bar svg { flex: none; width: 22px; height: 22px; color: var(--muted); }
+.bar input { flex: 1; min-width: 0; font: 400 var(--s-body)/1.4 var(--font); color: var(--ink); background: transparent; border: 0; padding: 14px 0; caret-color: var(--accent); }
+.bar input:focus { outline: none; }
+.bar:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+.bar input::placeholder { color: var(--muted); }
+.go { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); transition: transform var(--t-press) var(--ease-out), filter var(--t-hover) ease; }
+.go:active { transform: scale(0.97); }
+.go svg { width: 20px; height: 20px; color: currentColor; }
+.list { position: absolute; left: 0; right: 0; top: calc(100% + 10px); z-index: 5; border-radius: 22px; padding: 8px; margin: 0; list-style: none;
+  max-height: min(62vh, 520px); overflow: auto;
+  --glass-a: rgba(255,255,255,.94); --glass-b: rgba(255,255,255,.88); --glass-c: rgba(255,255,255,.92); } /* 뒤 글자가 비치지 않게 거의 불투명 */
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; cursor: pointer; }
+.list li[aria-selected="true"] { background: var(--paper-2); }
+.list li .arr { color: var(--muted); transition: transform var(--t-hover) var(--ease-out); }
+.list li[aria-selected="true"] .arr { transform: translateX(4px); }
+.list .empty { color: var(--muted); cursor: default; font-size: var(--s-small); }
+.chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { font: 600 var(--s-body)/1 var(--font); color: var(--ink); background: var(--paper); border: 0; border-radius: 999px; padding: 13px 18px; cursor: pointer;
+  transition: transform var(--t-press) var(--ease-out), background-color var(--t-hover) ease; }
+.chip:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .go:hover { filter: brightness(1.08); }
+  .chip:hover { background: rgba(255,255,255,.8); }
+  .list li:hover { background: var(--paper-2); }
+}
+
+/* 미리 보기: 고른 사람의 실제 답에서 잘라 온 화면 조각 4장. 누르면 그 질문이 열림 */
+.peek { display: grid; gap: 16px; }
+.peek h2 { font-size: var(--s-title); line-height: 1.2; letter-spacing: -0.025em; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { border-radius: 24px; padding: 20px; display: grid; gap: 14px; align-content: start; min-height: 230px; overflow: hidden; }
+.card .cq { all: unset; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; }
+.card .cq::after { content: ""; position: absolute; inset: 0; border-radius: inherit; } /* 카드 전체를 누를 수 있게 */
+.card .cq:focus-visible { outline: none; }
+.card:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
+.card .cq .arr { color: var(--muted); transition: transform var(--t-hover) var(--ease-out); }
+.card .mini { font-size: var(--s-small); line-height: 1.45; pointer-events: none; display: grid; gap: 10px; }
+.card .mini .steps { gap: 10px; }
+.card .mini .steps li { grid-template-columns: 26px 1fr; gap: 2px 10px; }
+.card .mini .steps li::before { width: 26px; height: 26px; font-size: var(--s-small); }
+.card .mini .steps span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .mini .bars { gap: 8px; }
+.card .mini .bars .row { grid-template-columns: 6.5em 1fr 3.5em; }
+.card .mini .bars .note { display: none; }
+.card .mini th, .card .mini td { padding: 5px 6px; }
+.seen { animation: rise 720ms var(--ease-out) both; animation-delay: calc(var(--i) * 110ms); }
+@media (hover: hover) and (pointer: fine) { .card:hover .cq .arr { transform: translateX(4px); } }
+
+/* 질문과 답 */
+.thread { display: grid; gap: 22px; }
+.ask { justify-self: end; max-width: 80%; background: var(--ink); color: #fff; border-radius: 22px 22px 6px 22px; padding: 12px 18px; font-weight: 600; }
+.answer { border-radius: 30px; padding: clamp(22px, 3.4vw, 40px); display: grid; gap: 18px; min-width: 0; }
+.answer .meta { font-size: var(--s-small); color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
+.answer h2 { font-size: var(--s-title); line-height: 1.2; letter-spacing: -0.025em; }
+.answer p { max-width: 64ch; }
+.wait { display: inline-flex; gap: 10px; align-items: center; color: var(--muted); font-size: var(--s-small); }
+.dots { display: inline-flex; gap: 5px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+.in { animation: rise 520ms var(--ease-out) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 40px 1fr; gap: 4px 14px; }
+.steps li::before { counter-increment: s; content: counter(s); grid-row: span 2; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.steps b { font-weight: 600; }
+.bars { display: grid; gap: 16px; }
+.bars .row { display: grid; grid-template-columns: 7.5em 1fr 4.5em; gap: 4px 14px; align-items: center; }
+.bars .row b { font-weight: 600; }
+.bars .v { text-align: right; font-variant-numeric: tabular-nums; }
+.track { height: 10px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+.fill { height: 100%; border-radius: 999px; background: var(--accent); transform-origin: left; animation: grow 700ms var(--ease-out) both; }
+@keyframes grow { from { transform: scaleX(0); } }
+.bars .note { grid-column: 1 / -1; font-size: var(--s-small); line-height: 1.5; color: var(--muted); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--s-small); line-height: 1.5; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+td:first-child { white-space: nowrap; font-weight: 600; }
+.ul h3 { font-size: var(--s-body); font-weight: 600; margin: 0 0 6px; }
+.ul ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.err { color: #b3261e; font-weight: 600; }
+footer { max-width: 860px; margin: 0 auto; padding: 0 var(--m) 48px; color: var(--muted); }
+footer p { max-width: 60ch; }
+
+@media (max-width: 560px) {
+  .bars .row, .card .mini .bars .row { grid-template-columns: 1fr auto; }
+  .bars .track { grid-column: 1 / -1; grid-row: 2; }
+  .cards { grid-template-columns: 1fr; }
+  .ask { max-width: 92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blob, .dots i, .in, .fill, .enter, .seen { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true">
+  <div class="blob" style="--w:62vmax;left:-22vmax;top:-16vmax;--a:160deg;--c1:var(--b1);--c2:var(--b2);--d:22s;--tx:6vmax;--ty:4vmax"></div>
+  <div class="blob" style="--w:56vmax;right:-18vmax;bottom:-14vmax;--a:200deg;--c1:var(--b3);--c2:var(--b4);--d:26s;--tx:-6vmax;--ty:-8vmax"></div>
+</div>
+<header class="top">
+  <a class="wordmark" href="app.html">48시간 소개팅</a>
+  <nav><a href="app.html">웹 앱</a><a href="index.html">M06 × W22 분석</a></nav>
+</header>
+<main>
+  <section class="hero">
+    <h1 class="enter" style="--i:0">무엇이 궁금하세요?</h1>
+    <p class="enter" style="--i:1">검색창을 누르면 물어볼 수 있는 질문이 나옵니다. 답은 매칭 로직이 계산한 숫자 그대로입니다.</p>
+  </section>
+  <label class="who enter" style="--i:2">누구의 결과를 볼까요 <select id="who" aria-label="결과를 볼 사람"></select></label>
+  <div class="search">
+    <form class="bar glass enter" id="bar" style="--i:3" role="search" autocomplete="off">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input id="q" type="text" placeholder="궁금한 점을 검색하세요" role="combobox" aria-expanded="false" aria-controls="list" aria-autocomplete="list" aria-label="질문 검색">
+      <button class="go" type="submit" aria-label="찾기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+    </form>
+    <ul class="list glass" id="list" role="listbox" aria-label="질문 목록" hidden></ul>
+  </div>
+  <div class="chips enter" id="chips" style="--i:4" aria-label="추천 질문"></div>
+  <section class="thread" id="thread" aria-live="polite"></section>
+  <section class="peek" aria-labelledby="peek-h">
+    <h2 id="peek-h">미리 보기</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+<footer><p>모든 인물은 수업 실습용 가상 인물입니다. 답은 콘솔과 같은 매칭 로직(거르기 → 임베딩 → 규칙 점수 → 이유)이 계산한 값입니다.</p></footer>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var data = null, shown = [], active = -1, busy = false;
+  var who = $("who"), q = $("q"), list = $("list"), thread = $("thread"), chips = $("chips");
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fmt(v) { return String(Math.round(v * 10) / 10); }
+  function norm(s) { return s.replace(/\s+/g, "").toLowerCase(); }
+
+  // ------------------------------------------------ 질문 목록 (검색어로 거르기)
+  function matches(text) {
+    var t = norm(text);
+    if (!t) return data.questions.slice();
+    return data.questions.filter(function (x) {
+      return norm(x.q).indexOf(t) >= 0 || x.keys.split(" ").some(function (k) { return k && (t.indexOf(k) >= 0 || k.indexOf(t) >= 0); });
+    });
+  }
+  function open() {
+    if (!data) return;
+    shown = matches(q.value);
+    list.textContent = "";
+    if (!shown.length) {
+      list.appendChild(el("li", "empty", "준비된 질문에서 골라 주세요. 지우면 전체 목록이 나옵니다."));
+    }
+    shown.forEach(function (x, i) {
+      var li = el("li");
+      li.id = "opt-" + x.id;
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", String(i === active));
+      li.appendChild(el("span", null, x.q));
+      li.appendChild(el("span", "arr", "→"));
+      li.addEventListener("mousedown", function (e) { e.preventDefault(); pick(x); });
+      list.appendChild(li);
+    });
+    list.hidden = false;
+    q.setAttribute("aria-expanded", "true");
+  }
+  function close() { list.hidden = true; q.setAttribute("aria-expanded", "false"); active = -1; q.removeAttribute("aria-activedescendant"); }
+  function move(d) {
+    if (list.hidden) open();
+    if (!shown.length) return;
+    active = (active + d + shown.length) % shown.length;
+    Array.prototype.forEach.call(list.children, function (li, i) { li.setAttribute("aria-selected", String(i === active)); });
+    q.setAttribute("aria-activedescendant", "opt-" + shown[active].id);
+    list.children[active].scrollIntoView({ block: "nearest" });
+  }
+
+  q.addEventListener("focus", open);
+  q.addEventListener("click", open);
+  q.addEventListener("input", function () { active = -1; open(); });
+  q.addEventListener("blur", function () { setTimeout(close, 120); });
+  q.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
+    else if (e.key === "Escape") { close(); }
+  });
+  $("bar").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!data) return;
+    var hit = active >= 0 ? shown[active] : matches(q.value)[0];
+    if (hit) pick(hit); else open();
+  });
+
+  // ------------------------------------------------ 답 그리기 (textContent 만 사용)
+  function block(b) {
+    if (b.t === "p") return el("p", null, b.text);
+    if (b.t === "steps") {
+      var ol = el("ol", "steps");
+      b.items.forEach(function (s) { var li = el("li"); li.appendChild(el("b", null, s.h)); li.appendChild(el("span", null, s.text)); ol.appendChild(li); });
+      return ol;
+    }
+    if (b.t === "bars") {
+      var box = el("div", "bars");
+      b.items.forEach(function (it) {
+        var row = el("div", "row");
+        row.appendChild(el("b", null, it.label));
+        var tr = el("div", "track"), fill = el("div", "fill");
+        fill.style.width = Math.max(0, Math.min(100, 100 * it.v / it.max)) + "%";
+        tr.appendChild(fill);
+        row.appendChild(tr);
+        row.appendChild(el("span", "v", fmt(it.v) + "/" + it.max));
+        row.appendChild(el("span", "note", it.note));
+        box.appendChild(row);
+      });
+      return box;
+    }
+    if (b.t === "table") {
+      var wrap = el("div", "tbl"), t = el("table"), thead = el("thead"), hr = el("tr"), tb = el("tbody");
+      b.head.forEach(function (h) { var th = el("th", null, h); th.scope = "col"; hr.appendChild(th); });
+      thead.appendChild(hr);
+      b.rows.forEach(function (r) { var tr2 = el("tr"); r.forEach(function (c) { tr2.appendChild(el("td", null, c)); }); tb.appendChild(tr2); });
+      t.appendChild(thead); t.appendChild(tb); wrap.appendChild(t);
+      return wrap;
+    }
+    if (b.t === "list") {
+      var d = el("div", "ul"), ul = el("ul");
+      if (b.h) d.appendChild(el("h3", null, b.h));
+      b.items.forEach(function (x) { ul.appendChild(el("li", null, x)); });
+      d.appendChild(ul);
+      return d;
+    }
+    return el("p", null, "");
+  }
+
+  function pick(x) {
+    if (!data || busy) return;
+    close();
+    q.value = "";
+    q.blur();
+    var pid = who.value, person = data.people.filter(function (p) { return p.id === pid; })[0];
+    var ask = el("p", "ask in", x.q);
+    var ans = el("article", "answer glass in");
+    ans.setAttribute("aria-label", x.q + " 답");
+    ans.appendChild(el("p", "meta", "매칭 로직 기준 · " + person.id + " " + person.name));
+    var wait = el("p", "wait");
+    var dots = el("span", "dots"); dots.appendChild(el("i")); dots.appendChild(el("i")); dots.appendChild(el("i"));
+    wait.appendChild(dots); wait.appendChild(el("span", null, "결과를 정리하는 중"));
+    ans.appendChild(wait);
+    thread.appendChild(ask);
+    thread.appendChild(ans);
+    ask.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    busy = true;
+    var blocks = data.answers[pid][x.id];
+    setTimeout(function () {
+      wait.remove();
+      ans.appendChild(el("h2", null, x.q));
+      blocks.forEach(function (b, i) {
+        var node = block(b);
+        if (!reduce) { node.classList.add("in"); node.style.animationDelay = (i * 140) + "ms"; }
+        ans.appendChild(node);
+      });
+      busy = false;
+    }, reduce ? 0 : 520);
+  }
+
+  function renderChips() {
+    chips.textContent = "";
+    ["logic", "why1", "diff2"].forEach(function (id) {
+      var x = data.questions.filter(function (y) { return y.id === id; })[0];
+      if (!x) return;
+      var b = el("button", "chip", x.q);
+      b.type = "button";
+      b.addEventListener("click", function () { pick(x); });
+      chips.appendChild(b);
+    });
+  }
+
+  // 미리 보기 카드: 그 사람의 답에서 첫 표·막대·단계를 잘라 작게 보여 줌 (표는 4줄까지)
+  var PEEK = ["logic", "why1", "diff2", "shift"], seen = null;
+  if ("IntersectionObserver" in window && !reduce) {
+    seen = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("seen"); e.target.style.opacity = ""; seen.unobserve(e.target); } });
+    }, { threshold: 0.15 });
+  }
+  function renderPeek() {
+    var box = $("cards"), pid = who.value;
+    box.textContent = "";
+    PEEK.forEach(function (id, i) {
+      var x = data.questions.filter(function (y) { return y.id === id; })[0];
+      if (!x) return;
+      var blocks = data.answers[pid][id];
+      var b = blocks.filter(function (z) { return z.t === "steps" || z.t === "bars" || z.t === "table"; })[0] || blocks[0];
+      if (b.t === "table") b = { t: "table", head: b.head, rows: b.rows.slice(0, 4) };
+      var card = el("div", "card glass");
+      card.setAttribute("data-ui", "");
+      card.style.setProperty("--i", i);
+      var btn = el("button", "cq");
+      btn.type = "button";
+      btn.appendChild(el("span", null, x.q));
+      btn.appendChild(el("span", "arr", "→"));
+      btn.addEventListener("click", function () { pick(x); });
+      var mini = el("div", "mini");
+      mini.setAttribute("aria-hidden", "true");
+      mini.appendChild(block(b));
+      card.appendChild(btn);
+      card.appendChild(mini);
+      box.appendChild(card);
+      if (seen) { card.style.opacity = "0"; seen.observe(card); }
+    });
+  }
+
+  who.addEventListener("change", function () { thread.textContent = ""; renderPeek(); });
+
+  fetch("ask.json").then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function (d) {
+    data = d;
+    [["남", "남성"], ["여", "여성"]].forEach(function (g) {
+      var og = document.createElement("optgroup");
+      og.label = g[1];
+      d.people.filter(function (p) { return p.sex === g[0]; }).forEach(function (p) {
+        var o = document.createElement("option");
+        o.value = p.id;
+        o.textContent = p.id + " " + p.name + " · " + p.age + "세 · " + p.home;
+        og.appendChild(o);
+      });
+      who.appendChild(og);
+    });
+    renderChips();
+    renderPeek();
+  }).catch(function () {
+    thread.appendChild(el("p", "err", "질문 데이터(ask.json)를 불러오지 못했습니다. 로컬에서는 python -m http.server --directory docs 로 열어 주세요."));
+  });
+})();
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ v2 기믹: 5) 각자 다르게 보는 호감도 → 안정 매칭 → 쌍방 확
       python match.py M01      (한 사람: 1~4단계 + 이번 시즌)
       python match.py season   (시즌 전체)
       python match.py check    (자체 점검 + 시각화 기준값 확인)
+      python match.py ask      (질문 검색 화면 docs/ask.html 의 답 docs/ask.json 만들기)
 """
 import csv
 import hashlib
@@ -100,6 +101,37 @@ EVENTS = [
     ("맛집 웨이팅 2시간", "운", None),
     ("숙소 앞 깜짝 선물", "운", None),
 ]
+
+# ===================== 질문 검색 설정 (docs/ask.html, 1~7단계에는 영향 없음) =====================
+# 답은 전부 아래 ask_answers()가 1~7단계 결과로 만듭니다. 질문을 바꾸면 python match.py ask 를 다시 실행합니다.
+ASK_QUESTIONS = [  # (아이디, 질문, 검색에 걸리는 낱말)
+    ("logic", "로직 확인하기", "로직 과정 단계 알고리즘 원리 어떻게 골라 매칭 순서"),
+    ("why1", "왜 1위가 잘 맞아?", "1위 이유 잘 맞 궁합 점수 추천"),
+    ("diff2", "2위와 뭐가 달라?", "2위 차이 비교 다른 달라"),
+    ("low", "점수가 가장 낮은 항목은 왜 낮아?", "낮은 감점 부족 약점 만점"),
+    ("filter", "누가 왜 걸러졌어?", "거르기 제외 조건 걸러 탈락 필터"),
+    ("shift", "임베딩 순위와 최종 순위는 왜 달라?", "임베딩 순위 변동 유사도 문장 벡터"),
+    ("wild", "의외의 궁합은 누구야?", "의외 숨은 후보 빠진 사람"),
+    ("table", "점수표는 어떻게 계산돼?", "점수표 배점 계산 기준 100점"),
+    ("weight", "외모·연봉 점수는 왜 작아?", "외모 연봉 경제 학력 배점 비중"),
+    ("date", "둘이 첫 데이트로 뭘 하면 좋을까?", "데이트 추천 만남 장소 코스 뭐하"),
+    ("season", "이번 시즌엔 어떻게 됐어?", "시즌 여행 커플 짝 안정 매칭 결과 호감도"),
+]
+# 데이트 제안: 둘 다 좋아하는 관심사 → 함께 해 볼 일 (CSV의 관심사 32종 전부, check 가 빠진 것을 찾습니다)
+DATE_IDEAS = {
+    "여행": "가까운 도시로 당일치기 여행", "독서": "서점에서 서로 책 한 권씩 골라 주기",
+    "요리": "시장에서 장을 보고 함께 요리하기", "영화": "영화를 보고 감상 나누기",
+    "맛집": "서로 아끼는 맛집 한 곳씩 소개하기", "와인": "와인 바에서 가볍게 한 잔",
+    "카페": "조용한 카페에서 긴 대화", "사진": "카메라 들고 동네 사진 산책",
+    "음악": "작은 공연장이나 LP 바", "캠핑": "당일 캠핑장 나들이", "러닝": "강변 가벼운 러닝",
+    "게임": "게임 카페에서 한 판", "등산": "가까운 산 둘레길 걷기", "베이킹": "베이킹 원데이 클래스",
+    "골프": "스크린 골프 한 게임", "반려동물": "반려동물 동반 공원 산책", "공연": "공연 관람",
+    "드라이브": "근교 드라이브", "봉사": "하루 봉사 활동", "글쓰기": "북카페에서 짧은 글 바꿔 읽기",
+    "전시회": "전시회 관람", "클라이밍": "실내 클라이밍", "요가": "요가 원데이 클래스",
+    "헬스": "함께 운동하기", "테니스": "테니스 한 게임", "그림": "드로잉 원데이 클래스",
+    "낚시": "바다 낚시", "수영": "실내 수영장", "보드게임": "보드게임 카페",
+    "자전거": "강변 자전거", "패션": "쇼핑 산책", "악기": "악기 체험 공방",
+}
 
 # 시각화(M06 × W22) 기준값 — 이 숫자가 바뀌면 과제 시각화를 새로 만들어야 합니다
 VISUAL_PAIR = ("M06", "W22")
@@ -616,6 +648,270 @@ def run_season(people, results):
     return {"선호": prefs, "화살표": arrows(prefs), "매칭": both, "달라진": changed, "쌍": entries}
 
 
+# ------------------------------------------------------------------ 질문 검색 답 (docs/ask.html)
+def _j(word, pair):
+    """받침에 맞는 조사를 붙입니다. pair = '이가'·'은는'·'과와'·'을를'."""
+    ch = word[-1]
+    batchim = "가" <= ch <= "힣" and (ord(ch) - 0xAC00) % 28 > 0
+    return word + (pair[0] if batchim else pair[1])
+
+
+def _how(c, a, b, s):
+    """항목 점수가 어떻게 나왔는지 한 문장. 이름을 붙여 누구의 값인지 분명히 합니다."""
+    an, bn = a["이름"], b["이름"]
+    if c == "가치관":
+        d = _step("결혼의향", a["결혼의향"], b["결혼의향"])
+        mp = _by_step(d, POINTS["결혼_같음"], POINTS["결혼_한칸"])
+        return (f"결혼 시기 {mp}점({an} {a['결혼의향']}, {bn} {b['결혼의향']}) + "
+                f"자녀 계획 {s - mp:g}점({an} {a['자녀계획']}, {bn} {b['자녀계획']})")
+    if c == "생활습관":
+        parts = []
+        for h in HABITS:
+            pts = _by_step(_step(h, a[h], b[h]), POINTS["습관_같음"], POINTS["습관_한칸"])
+            parts.append(f"{h} {pts}점(둘 다 {a[h]})" if a[h] == b[h] else f"{h} {pts}점({an} {a[h]}, {bn} {b[h]})")
+        return " + ".join(parts)
+    if c == "관심사":
+        sh = shared_interests(a, b)
+        only_a = [x for x in _list(a["관심사"]) if x not in sh]
+        only_b = [x for x in _list(b["관심사"]) if x not in sh]
+        t = (f"둘 다 좋아하는 관심사 {len(sh)}개({'·'.join(sh)}) × {POINTS['관심사_개당']}점" if sh
+             else "겹치는 관심사가 없어 0점")
+        return t + (f". {an}만 {'·'.join(only_a)}" if only_a else "") + (f", {bn}만 {'·'.join(only_b)}" if only_b else "")
+    if c == "성격·소통":
+        cp = _by_step(_step("연락빈도", a["연락빈도"], b["연락빈도"]), POINTS["연락_같음"], POINTS["연락_한칸"])
+        n = sum(x == y for x, y in zip(a["MBTI"], b["MBTI"]))
+        return (f"연락 빈도 {cp}점({an} {a['연락빈도']}, {bn} {b['연락빈도']}) + "
+                f"MBTI 같은 자리 {n}글자 × {POINTS['MBTI_글자']}점({an} {a['MBTI']}, {bn} {b['MBTI']})")
+    if c == "나이":
+        gap = abs(int(a["나이"]) - int(b["나이"]))
+        return (f"{an} {a['나이']}세, {bn} {b['나이']}세로 {gap}살 차이 "
+                f"({AGE_BANDS[0]}살 이내 {POINTS['나이_0_2']}점, {AGE_BANDS[1]}살 이내 {POINTS['나이_3_5']}점, "
+                f"그 이상 {POINTS['나이_6이상']}점)")
+    if c == "거주지":
+        if a["거주_시"] != b["거주_시"]:
+            t = f"사는 시가 다름({an} {a['거주_시']}, {bn} {b['거주_시']})"
+        elif a["거주_구"] == b["거주_구"]:
+            t = f"둘 다 {a['거주_시']} {a['거주_구']}"
+        else:
+            t = f"같은 {a['거주_시']}이지만 {an} {a['거주_구']}, {bn} {b['거주_구']}"
+        return t + f" (같은 구 {POINTS['같은구']}점, 같은 시 {POINTS['같은시']}점, 다른 시 {POINTS['다른시']}점)"
+    return _phrase(c, a, b, s)[1] + " (나→상대, 상대→나 평균)"
+
+
+def _p(text):
+    return {"t": "p", "text": text}
+
+
+def _ratio_items(sc, best=True, n=2):
+    """만점 대비 비율이 높은(낮은) 항목 n개."""
+    key = (lambda c: (-sc[c] / MAX[c], list(MAX).index(c))) if best else (lambda c: (sc[c] / MAX[c], list(MAX).index(c)))
+    return sorted(MAX, key=key)[:n]
+
+
+def ask_answers(me, r, wc, season, by_id):
+    """질문 아이디 → 답(블록 목록). 전부 1~7단계 결과로 만들며 순위·점수는 바꾸지 않습니다.
+
+    블록: {"t": "p", "text"} 문단 · {"t": "steps", "items": [{"h", "text"}]} 단계
+          {"t": "bars", "items": [{"label", "v", "max", "note"}]} 점수 막대 · {"t": "table", "head", "rows"} 표
+          {"t": "list", "items": [문장]} 목록
+    """
+    f, rows, cands, mn = r["거르기"], r["순위"], r["후보"], me["이름"]
+    n = len(f["통과"])
+    A = {
+        "filter": [_p(f"반대 성별 {f['대상']}명 중 {f['제외인원']}명이 거르기 조건에 걸려 {n}명이 남았습니다. "
+                      "나→상대(내 조건)와 상대→나(상대 조건)를 모두 검사합니다."),
+                   {"t": "table", "head": ["조건", "걸린 인원", "내 조건으로", "상대 조건으로"],
+                    "rows": [[rule, f"{c['인원']}명", f"{c['내 조건']}명", f"{c['상대 조건']}명"]
+                             for rule, c in ((rule, f["제외"][rule]) for rule in RULES)]},
+                   _p("한 사람이 여러 조건에 걸리면 조건마다 따로 세므로, 조건별 인원의 합은 실제로 걸러진 인원보다 클 수 있습니다.")],
+        "table": [_p(f"100점 만점 규칙 점수입니다. 임베딩으로 추린 후보 {K}명을 이 점수로 다시 줄 세웁니다."),
+                  {"t": "table", "head": ["항목", "배점", "계산"], "rows": [
+                      ["가치관", f"{MAX['가치관']}", f"결혼의향 같으면 {POINTS['결혼_같음']}, 한 칸 차이 {POINTS['결혼_한칸']} / 자녀계획 같으면 {POINTS['자녀_같음']}, 한쪽이 모름이면 {POINTS['자녀_모름']}"],
+                      ["생활습관", f"{MAX['생활습관']}", f"{'·'.join(HABITS)} 각각 같으면 {POINTS['습관_같음']}, 한 칸 차이 {POINTS['습관_한칸']}"],
+                      ["관심사", f"{MAX['관심사']}", f"겹치는 관심사 1개당 {POINTS['관심사_개당']}, 최대 {POINTS['관심사_최대']}"],
+                      ["성격·소통", f"{MAX['성격·소통']}", f"연락빈도 같으면 {POINTS['연락_같음']}, 한 칸 차이 {POINTS['연락_한칸']} / MBTI 같은 자리 글자당 {POINTS['MBTI_글자']}"],
+                      ["나이", f"{MAX['나이']}", f"차이 {AGE_BANDS[0]}살 이내 {POINTS['나이_0_2']}, {AGE_BANDS[1]}살 이내 {POINTS['나이_3_5']}, 그 이상 {POINTS['나이_6이상']}"],
+                      ["거주지", f"{MAX['거주지']}", f"같은 구 {POINTS['같은구']}, 같은 시 {POINTS['같은시']}, 다른 시 {POINTS['다른시']}"],
+                      ["외모스타일", f"{MAX['외모스타일']}", f"선호 키워드와 상대 외모스타일이 겹치면 {POINTS['외모_겹침']} (선호가 빈칸이면 충족)"],
+                      ["경제·학력", f"{MAX['경제·학력']}", f"희망 연봉 구간 이상 {POINTS['연봉_충족']} + 학력 차이 한 단계 이내 {POINTS['학력_한단계']}"]]},
+                  _p("외모스타일·경제·학력은 나→상대, 상대→나 양방향 평균이라 2.5점 같은 값이 나옵니다. "
+                     "총점이 같으면 가치관 → 생활습관 → 번호 순으로 정합니다.")],
+        "weight": [_p(f"외모스타일 {MAX['외모스타일']}점, 경제·학력 {MAX['경제·학력']}점으로 100점 중 "
+                      f"{MAX['외모스타일'] + MAX['경제·학력']}점입니다. 가치관·생활습관·관심사는 각 {MAX['가치관']}점입니다."),
+                   _p("배우자 조건 1순위는 성격이고, 오래가는 관계는 가치관·생활습관이 좌우한다고 보고 배점을 정했습니다. "
+                      "외모와 연봉은 '선호에 맞는지'만 보고 크기를 따지지 않습니다.")],
+    }
+    if not rows:  # 거르기 통과자가 0명: 1단계만 있고 나머지 질문은 답할 내용이 없음
+        none = [_p(no_match_message(f)), _p("1단계에서 모두 걸러져 2~4단계와 시즌은 진행되지 않았습니다.")]
+        A["logic"] = [{"t": "steps", "items": [{"h": "1 거르기", "text": no_match_message(f)}]}]
+        for qid, _, _ in ASK_QUESTIONS:
+            A.setdefault(qid, none)
+        return A
+
+    top, p1 = rows[0], rows[0]["상대"]
+    sims = cands and cands[0][1] is not None
+    A["logic"] = [{"t": "steps", "items": [
+        {"h": "1 거르기", "text": f"전체 {f['전체']}명 중 본인·같은 성별을 빼면 {f['대상']}명. 희망 나이·흡연·종교·자녀 계획·"
+                               f"거주지·키 조건을 나→상대, 상대→나 양방향으로 검사해 {f['제외인원']}명을 거르고 {n}명이 남았습니다."},
+        {"h": "2 후보 추리기", "text": (f"남은 {n}명의 자기소개·관심사·주말·결혼·자녀 문장을 임베딩 모델({MODEL_NAME})로 "
+                                   f"숫자 벡터로 바꾸고, {mn}님과 문장이 비슷한 순으로 {len(cands)}명을 골랐습니다. "
+                                   f"가장 비슷한 사람은 {cands[0][0]['이름']}(유사도 {cands[0][1]:.3f})입니다.")
+                                  if sims else f"임베딩 모델 없이 {n}명 전원을 3단계로 넘겼습니다."},
+        {"h": "3 순위", "text": f"{len(rows)}명을 100점 규칙 점수로 다시 줄 세웠습니다. "
+                              + ", ".join(f"{x['최종순위']}위 {x['상대']['이름']} {x['총점']:g}점" for x in rows[:3]) + "."},
+        {"h": "4 이유", "text": f"1위 {p1['이름']}: {r['이유']}"}]}]
+
+    A["why1"] = [_p(f"{_j(p1['이름'], '은는')} {mn}님의 1위, 규칙 점수 {top['총점']:g}/100점입니다."
+                    + (f" 문장 유사도로는 {top['임베딩순위']}위였습니다." if top["임베딩순위"] else "")),
+                 {"t": "bars", "items": [{"label": c, "v": top["점수"][c], "max": MAX[c],
+                                          "note": _how(c, me, p1, top["점수"][c])} for c in MAX]},
+                 _p("한 줄로: " + r["이유"])]
+
+    if len(rows) < 2:
+        A["diff2"] = [_p("후보가 1명뿐이라 비교할 2위가 없습니다.")]
+    else:
+        a, b = rows[0], rows[1]
+        pa, pb = a["상대"]["이름"], b["상대"]["이름"]
+        diff = [c for c in MAX if a["점수"][c] != b["점수"][c]]
+        head = (f"1위 {pa} {a['총점']:g}점과 2위 {pb} {b['총점']:g}점은 {a['총점'] - b['총점']:g}점 차이입니다. "
+                + (f"점수가 다른 항목은 {'·'.join(diff)}이고 나머지는 같습니다." if diff
+                   else "모든 항목 점수가 같아 가치관 → 생활습관 → 번호 순으로 정했습니다."))
+        A["diff2"] = [_p(head)]
+        if diff:
+            A["diff2"].append({"t": "table", "head": ["항목", f"1위 {pa}", f"2위 {pb}"],
+                               "rows": [[c, f"{a['점수'][c]:g}/{MAX[c]}", f"{b['점수'][c]:g}/{MAX[c]}"] for c in diff]})
+            for c in diff:
+                A["diff2"].append({"t": "list", "h": c, "items": [
+                    f"{pa}: " + _how(c, me, a["상대"], a["점수"][c]), f"{pb}: " + _how(c, me, b["상대"], b["점수"][c])]})
+
+    sc = top["점수"]
+    low = [c for c in _ratio_items(sc, best=False, n=len(MAX)) if sc[c] < MAX[c]]
+    if not low:
+        A["low"] = [_p(f"1위 {p1['이름']}님은 모든 항목이 만점입니다.")]
+    else:
+        c = low[0]
+        A["low"] = [_p(f"1위 {p1['이름']}님에게서 만점 대비 가장 낮은 항목은 {c} {sc[c]:g}/{MAX[c]}점"
+                       f"({round(100 * sc[c] / MAX[c])}%)입니다."), _p(f"{c} 계산: " + _how(c, me, p1, sc[c]) + ".")]
+        if len(low) > 1:
+            A["low"].append(_p("그 밖에 만점이 아닌 항목: " + ", ".join(f"{x} {sc[x]:g}/{MAX[x]}" for x in low[1:]) + "."))
+
+    if not sims:
+        A["shift"] = [_p("임베딩 모델 없이 돌아 문장 유사도 순위가 없습니다. 통과자 전원을 규칙 점수로만 줄 세웠습니다.")]
+    else:
+        moved = [(x["임베딩순위"] - x["최종순위"], x) for x in rows]
+        up, down = max(moved, key=lambda t: (t[0], -t[1]["최종순위"])), min(moved, key=lambda t: (t[0], t[1]["최종순위"]))
+        A["shift"] = [_p("임베딩은 자기소개 문장이 얼마나 비슷한지만 보고, 최종 순위는 결혼·자녀 계획·생활습관 같은 조건을 "
+                         "점수로 매깁니다. 그래서 문장은 비슷해도 조건이 다르면 내려가고, 반대도 생깁니다."),
+                      {"t": "table", "head": ["이름", "임베딩", "최종", "변동"],
+                       "rows": [[x["상대"]["이름"], f"{x['임베딩순위']}위", f"{x['최종순위']}위",
+                                 "=" if d == 0 else (f"▲{d}" if d > 0 else f"▼{-d}")] for d, x in moved]}]
+        if up[0] > 0:
+            x = up[1]
+            A["shift"].append(_p(f"가장 크게 오른 사람은 {x['상대']['이름']}(임베딩 {x['임베딩순위']}위 → 최종 {x['최종순위']}위)입니다. "
+                                 + ", ".join(f"{c} {x['점수'][c]:g}/{MAX[c]}" for c in _ratio_items(x["점수"]))
+                                 + "에서 점수가 높았습니다."))
+        if down[0] < 0:
+            x = down[1]
+            A["shift"].append(_p(f"가장 크게 내려간 사람은 {x['상대']['이름']}(임베딩 {x['임베딩순위']}위 → 최종 {x['최종순위']}위)입니다. "
+                                 + ", ".join(f"{c} {x['점수'][c]:g}/{MAX[c]}" for c in _ratio_items(x["점수"], best=False))
+                                 + "에서 점수가 낮았습니다."))
+
+    if wc is None:
+        A["wild"] = [_p("통과자 전원이 이미 3단계 후보에 들어가 따로 뽑을 사람이 없습니다.")]
+    else:
+        w, wsc = wc["상대"], rule_score(me, wc["상대"])
+        A["wild"] = [_p(f"{w['이름']}({w['번호']}, {w['나이']}세, {w['거주_시']} {w['거주_구']})님은 문장 유사도 "
+                        f"{wc['임베딩순위']}위라 후보 {K}명에 못 들었지만, 규칙 점수는 {wc['총점']:g}점으로 후보 {K}명 중 "
+                        f"{wc['앞선인원']}명보다 높습니다."),
+                     _p("잘 맞는 항목: " + ", ".join(f"{c} {wsc[c]:g}/{MAX[c]}" for c in _ratio_items(wsc, n=3)) + ".")]
+
+    sh = shared_interests(me, p1)
+    pn = p1["이름"]
+    tips = []
+    if me["주말스타일"] == p1["주말스타일"]:
+        tips.append({"집": "둘 다 주말엔 집이 편한 편이라 붐비는 곳보다 조용한 곳이 맞겠습니다.",
+                     "밖": "둘 다 주말엔 밖이 좋은 편이라 바깥 활동이 잘 맞겠습니다.",
+                     "반반": "둘 다 주말을 반반 보내는 편이라 낮엔 밖, 저녁엔 조용한 곳으로 나누면 좋겠습니다."}[me["주말스타일"]])
+    else:
+        tips.append(f"주말 스타일이 달라({mn} {me['주말스타일']}, {pn} {p1['주말스타일']}) 첫 만남은 짧은 일정이 무난하겠습니다.")
+    drinkers = [x["음주"] for x in (me, p1)]
+    if drinkers.count("안마심") == 2:
+        tips.append("둘 다 술을 마시지 않으니 식사와 카페 위주가 좋겠습니다.")
+    elif "안마심" in drinkers:
+        tips.append("한 분은 술을 마시지 않으니 술자리보다 식사·카페가 무난하겠습니다.")
+    A["date"] = [_p(f"{mn}님과 1위 {pn}님이 둘 다 좋아하는 것: {'·'.join(sh)}." if sh else
+                    f"{mn}님과 1위 {pn}님은 겹치는 관심사가 없습니다."),
+                 {"t": "list", "items": [f"{x}: {DATE_IDEAS.get(x, x + ' 함께 해 보기')}" for x in sh] if sh else
+                  [f"{mn}님의 {_j(_list(me['관심사'])[0], '과와')} {pn}님의 {_j(_list(p1['관심사'])[0], '을를')} "
+                   "한 번씩 번갈아 해 보기"]},
+                 _p(" ".join(tips)),
+                 _p("두 사람의 공통 관심사와 주말·음주 습관 규칙으로 고른 제안입니다.")]
+
+    pid = me["번호"]
+    prefs, e = season["선호"].get(pid, []), season["쌍"].get(pid)
+    imp = me.get("중요항목") or "없음(균형형)"
+    S = [_p(f"이번 시즌({SEASON}) 호감도 = 궁합(항목 점수 × 내 중요항목 {WEIGHT_IMPORTANT}배) + 첫인상(±{FIRST_IMPRESSION}). "
+            f"{mn}님의 중요항목: {imp}.")]
+    if prefs:
+        S.append({"t": "table", "head": ["상대", "내가 보는 호감도", "상대가 나를 보는 호감도"],
+                  "rows": [[by_id[q]["이름"], f"{s:.1f}", f"{dict(season['선호'][q]).get(pid, 0):.1f}"]
+                           for q, s in prefs[:3]]})
+    if e is None:
+        S.append(_p(f"호감도 {MATCH_MIN}점 이상인 상대와 짝이 맺어지지 않아 이번 시즌은 혼자입니다."))
+    else:
+        mate = e["여"] if e["남"] == pid else e["남"]
+        S.append(_p(f"안정 매칭 짝은 {by_id[mate]['이름']}님입니다. 쌍방 확인: "
+                    + ", ".join(f"{k} {'통과' if ok else '탈락'}" for k, ok in e["확인"].items()) + "."))
+        if "여행" not in e:
+            S.append(_p("쌍방 확인을 모두 통과하지 못해 48시간 여행은 가지 않았습니다."))
+        else:
+            label = {"같음": "잘 맞음", "한칸": "그럭저럭", "두칸": "부딪힘", "운": "운"}
+            t = e["여행"]
+            S.append({"t": "table", "head": ["48시간 여행", "결과", f"{mn} 호감도", f"{by_id[mate]['이름']} 호감도"],
+                      "rows": [[ev["이벤트"], label[ev["결과"]], f"{ev['호감도'][pid]:.1f} ({ev['변화'][pid]:+.1f})",
+                                f"{ev['호감도'][mate]:.1f} ({ev['변화'][mate]:+.1f})"] for ev in t["로그"]]})
+            if t["커플"]:
+                s = e["지원금"]
+                S.append(_p(f"최종 호감도 {t['최종'][pid]:.1f} / {t['최종'][mate]:.1f}로 양쪽 모두 {COUPLE_MIN}점 이상이라 "
+                            f"커플이 됐습니다. 데이트 바우처 {s['총액']:,}P를 "
+                            + " · ".join(f"{mo}개월 {amt:,}P" for mo, amt in s["분할"]) + "로 나눠 받습니다."))
+            else:
+                S.append(_p(f"최종 호감도 {t['최종'][pid]:.1f} / {t['최종'][mate]:.1f}. 한쪽 이상이 {COUPLE_MIN}점에 못 미쳐 "
+                            "커플이 되지 않았습니다."))
+    A["season"] = S
+    return A
+
+
+def ask_export(people, results, season, vecs):
+    """docs/ask.json: 질문 목록 + 사람 목록 + 사람별 답. 웹은 이 값을 그대로 보여 주기만 합니다."""
+    by_id = {p["번호"]: p for p in people}
+    answers = {}
+    for p in people:
+        r = results[p["번호"]]
+        wc = wildcard(p, r, vecs) if r["순위"] else None
+        answers[p["번호"]] = ask_answers(p, r, wc, season, by_id)
+    return {"questions": [{"id": q, "q": text, "keys": keys} for q, text, keys in ASK_QUESTIONS],
+            "people": [{"id": p["번호"], "name": p["이름"], "sex": p["성별"], "age": int(p["나이"]),
+                        "home": f"{p['거주_시']} {p['거주_구']}"} for p in people],
+            "answers": answers}
+
+
+def ask_check(people, results, season, vecs):
+    """질문 검색 답 점검 — 하나라도 어기면 AssertionError."""
+    missing = sorted({x for p in people for x in _list(p["관심사"])} - set(DATE_IDEAS))
+    assert not missing, f"DATE_IDEAS에 없는 관심사: {missing}"
+    data = ask_export(people, results, season, vecs)
+    ids = [q["id"] for q in data["questions"]]
+    for p in people:
+        ans, r = data["answers"][p["번호"]], results[p["번호"]]
+        assert ids == [q for q, _, _ in ASK_QUESTIONS] and set(ans) == set(ids), p["번호"]
+        if r["순위"]:  # 1위 답의 이름·총점이 3단계 결과와 같아야 함
+            top = r["순위"][0]
+            assert ans["why1"][0]["text"].startswith(_j(top["상대"]["이름"], "은는"))
+            assert f"{top['총점']:g}/100점" in ans["why1"][0]["text"]
+    return data
+
+
 def visual_check(people, results, vecs):
     """과제 시각화(M06 × W22)에 쓴 숫자가 그대로인지. 어긋난 항목 목록 (빈 목록이면 정상)."""
     by_id = {p["번호"]: p for p in people}
@@ -896,7 +1192,7 @@ def main():
         out.write_text(json.dumps(export_web(people), ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"{out.relative_to(HERE)}에 {len(people)}명과 점수표를 내보냈습니다.")
         return
-    if arg not in ("ALL", "SEASON", "CHECK") and arg not in by_id:
+    if arg not in ("ALL", "SEASON", "CHECK", "ASK") and arg not in by_id:
         print(f"'{arg}' 번호가 없습니다. 예: M07, W12, all, season, check")
         sys.exit(1)
 
@@ -921,6 +1217,14 @@ def main():
             sys.exit(1)
         note = "" if vecs is not None else " (임베딩 유사도는 모델이 없어 확인하지 못함)"
         print(f"시각화(M06 × W22) 기준값 일치: 프로필 원본 · 통과 인원 · 1위 · 49점 · 거르기 · 유사도{note}")
+        ask_check(people, results, season, vecs)
+        print(f"(질문 검색 점검 통과: {len(people)}명 × 질문 {len(ASK_QUESTIONS)}개 / 1위 이름·총점 = 3단계 결과 / 데이트 제안 관심사 전부)")
+    elif arg == "ASK":
+        out = HERE / "docs" / "ask.json"
+        with open(out, "w", encoding="utf-8", newline="\n") as fh:  # LF 유지 (write_text 는 Windows 에서 CRLF)
+            json.dump(ask_check(people, results, season, vecs), fh, ensure_ascii=False, indent=1)
+        print(f"{out.relative_to(HERE)}에 {len(people)}명 × 질문 {len(ASK_QUESTIONS)}개의 답을 내보냈습니다."
+              + (" (임베딩 없이 계산됨: 모델을 불러온 뒤 다시 실행하세요)" if vecs is None else ""))
     else:
         print_one(by_id[arg], results[arg], emb_err)
         if results[arg]["순위"]:

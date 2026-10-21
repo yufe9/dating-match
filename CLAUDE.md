@@ -13,6 +13,8 @@ UI 문자열과 주석은 전부 한국어입니다.
 
 - `match.py` 가 규칙의 원본입니다. 웹은 `python match.py export` 로 만든 `docs/profiles.json` 의 점수표·여행 규칙을 그대로 씁니다.
   점수표나 여행 규칙(`EVENTS`, `TRIP_*`, `FIRST_IMPRESSION`)을 바꾸면 export 를 다시 실행합니다.
+- `docs/ask.html`(매칭 로직 검색)은 `python match.py ask` 가 만든 `docs/ask.json` 을 보여 주기만 합니다. 답은 `match.py` 의 `ask_answers()`, 질문 목록은 `ASK_QUESTIONS`, 데이트 제안은 `DATE_IDEAS` 입니다.
+  CSV·점수표·질문을 바꾸면 `ask` 를 다시 실행합니다. 화면에 "AI·LLM이 답한다"는 문구는 쓰지 않습니다(답은 규칙이 만듭니다).
 - `docs/app-logic.js` 는 화면을 모르는 순수 로직(카드 → 성향 → 여행 온도 → 도시 → 후보 → 48시간 여행), `docs/app.html` 은 화면입니다.
 - 웹만 다른 값: 커플 기준 `COUPLE_MIN = 70`(콘솔 85). 웹은 쌍방 확인 없이 바로 여행을 떠나기 때문이며 이유와 시뮬레이션 수치는 `app-logic.js` 주석과 로직 공개 화면에 있습니다.
 - CSV에 칸을 추가하지 않습니다. `python match.py check` 의 시각화 기준값(M06 × W22) 해시가 깨집니다.
@@ -21,7 +23,7 @@ UI 문자열과 주석은 전부 한국어입니다.
 
 ```bash
 node tests/app-logic.test.js              # 웹 로직 11개
-python match.py check                     # 파이썬 자체 점검 + 시각화 기준값
+python match.py check                     # 파이썬 자체 점검 + 시각화 기준값 + 질문 검색 답 점검
 node .claude/skills/design-taste-frontend/scripts/lint.mjs docs/app.html      # 실패 0
 node .claude/skills/design-taste-frontend/scripts/inspect.mjs docs/app.html --allow gradient,shadow,glass   # 실패 0 (Liquid Glass 양식 예외는 DESIGN.md)
 python -m http.server 8765 --directory docs   # 다른 터미널에서 켜 두고
